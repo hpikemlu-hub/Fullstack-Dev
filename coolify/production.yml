@@ -1,0 +1,199 @@
+# Coolify Production Configuration
+# HPSB Workload Management System
+
+name: hpsb-workload-production
+project: hpsb-workload-management
+environment: production
+
+services:
+  # ==========================================
+  # APPLICATION SERVICE
+  # ==========================================
+  app:
+    name: workload-app-prod
+    image: "ghcr.io/username/hpsb-workload-management:latest"
+    ports:
+      - "3000:3000"
+    restart: unless-stopped
+    
+    # Resource Limits
+    deploy:
+      resources:
+        limits:
+          memory: 1024M
+          cpus: '1.0'
+        reservations:
+          memory: 512M
+          cpus: '0.5'
+    
+    # Environment Variables
+    environment:
+      - NODE_ENV=production
+      - PORT=3000
+      - HOSTNAME=0.0.0.0
+      - DATABASE_URL=${DATABASE_URL}
+      - JWT_SECRET=${JWT_SECRET}
+      - JWT_REFRESH_SECRET=${JWT_REFRESH_SECRET}
+      - ALLOWED_ORIGINS=https://workload.kemlu.go.id
+      - REDIS_URL=redis://redis-prod:6379
+      - UPLOAD_PATH=/app/uploads
+      - NEXT_TELEMETRY_DISABLED=1
+      - LOG_LEVEL=info
+      - ENABLE_METRICS=true
+      - HEALTH_CHECK_TIMEOUT=5000
+      - BACKUP_RETENTION_DAYS=30
+      - BACKUP_COMPRESSION=true
+    
+    # Health Check
+    healthcheck:
+      test: ["CMD", "node", "healthcheck.js"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    
+    # Volumes
+    volumes:
+      - app-uploads:/app/uploads
+      - app-logs:/app/logs
+    
+    # Dependencies
+    depends_on:
+      - postgres-prod
+      - redis-prod
+
+  # ==========================================
+  # DATABASE SERVICE
+  # ==========================================
+  postgres-prod:
+    name: workload-postgres-prod
+    image: postgres:15-alpine
+    restart: unless-stopped
+    
+    # Resource Limits
+    deploy:
+      resources:
+        limits:
+          memory: 1024M
+          cpus: '1.0'
+        reservations:
+          memory: 768M
+          cpus: '0.5'
+    
+    environment:
+      - POSTGRES_DB=workload_production
+      - POSTGRES_USER=${POSTGRES_USER}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+      - POSTGRES_INITDB_ARGS=--auth-host=scram-sha-256
+    
+    # Performance Configuration
+    command: >
+      postgres
+      -c shared_buffers=256MB
+      -c effective_cache_size=1GB
+      -c maintenance_work_mem=64MB
+      -c checkpoint_completion_target=0.7
+      -c wal_buffers=16MB
+      -c default_statistics_target=100
+      -c random_page_cost=1.1
+      -c effective_io_concurrency=200
+      -c max_connections=100
+    
+    volumes:
+      - postgres-prod-data:/var/lib/postgresql/data
+      - postgres-prod-backup:/backup
+    
+    # Health Check
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d workload_production"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ==========================================
+  # REDIS CACHE SERVICE
+  # ==========================================
+  redis-prod:
+    name: workload-redis-prod
+    image: redis:7-alpine
+    restart: unless-stopped
+    
+    # Resource Limits
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+          cpus: '0.5'
+        reservations:
+          memory: 256M
+          cpus: '0.25'
+    
+    # Redis Configuration
+    command: >
+      redis-server
+      --maxmemory 512mb
+      --maxmemory-policy allkeys-lru
+      --appendonly yes
+      --save 900 1
+      --save 300 10
+      --save 60 10000
+    
+    volumes:
+      - redis-prod-data:/data
+    
+    # Health Check
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
+# ==========================================
+# VOLUMES
+# ==========================================
+volumes:
+  postgres-prod-data:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: /opt/coolify/data/postgres-prod
+  
+  postgres-prod-backup:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: /opt/coolify/backup/postgres-prod
+  
+  redis-prod-data:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: /opt/coolify/data/redis-prod
+  
+  app-uploads:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: /opt/coolify/data/app-uploads
+  
+  app-logs:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: /opt/coolify/logs/app
+
+# ==========================================
+# NETWORKS
+# ==========================================
+networks:
+  default:
+    name: hpsb-workload-prod
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.20.0.0/16

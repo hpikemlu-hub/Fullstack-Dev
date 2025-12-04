@@ -1,0 +1,354 @@
+name: Production Deployment
+
+on:
+  push:
+    branches: [ main ]
+    paths-ignore:
+      - 'docs/**'
+      - '*.md'
+      - '.gitignore'
+  workflow_dispatch:
+    inputs:
+      deploy_reason:
+        description: 'Reason for manual deployment'
+        required: true
+        default: 'Manual production deployment'
+
+env:
+  NODE_VERSION: '18'
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}
+
+jobs:
+  # =============================================
+  # SECURITY & QUALITY CHECKS
+  # =============================================
+  security-scan:
+    name: 🔒 Security Scan
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci --only=production
+
+      - name: Security audit
+        run: |
+          npm audit --audit-level moderate
+          echo "✅ Security audit completed"
+
+      - name: Check for sensitive files
+        run: |
+          # Check for accidentally committed secrets
+          if find . -name "*.env" -o -name "*.key" -o -name "*.pem" | grep -v ".env.example"; then
+            echo "❌ Sensitive files detected!"
+            exit 1
+          fi
+          echo "✅ No sensitive files found"
+
+  # =============================================
+  # COMPREHENSIVE TESTING
+  # =============================================
+  test-suite:
+    name: 🧪 Test Suite
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_PASSWORD: test_password
+          POSTGRES_USER: test_user
+          POSTGRES_DB: test_db
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Setup test database
+        env:
+          DATABASE_URL: postgresql://test_user:test_password@localhost:5432/test_db
+        run: |
+          npx prisma generate
+          npx prisma db push
+
+      - name: Run unit tests
+        env:
+          NODE_ENV: test
+          DATABASE_URL: postgresql://test_user:test_password@localhost:5432/test_db
+        run: npm run test:unit
+
+      - name: Run integration tests
+        env:
+          NODE_ENV: test
+          DATABASE_URL: postgresql://test_user:test_password@localhost:5432/test_db
+        run: npm run test:integration
+
+      - name: Install Playwright browsers
+        run: npx playwright install --with-deps
+
+      - name: Run E2E tests
+        env:
+          NODE_ENV: test
+          DATABASE_URL: postgresql://test_user:test_password@localhost:5432/test_db
+        run: npm run test:e2e
+
+      - name: Upload test results
+        uses: actions/upload-artifact@v3
+        if: failure()
+        with:
+          name: test-results
+          path: |
+            test-results/
+            coverage/
+
+  # =============================================
+  # BUILD APPLICATION
+  # =============================================
+  build:
+    name: 🏗️ Build Application
+    runs-on: ubuntu-latest
+    needs: [security-scan, test-suite]
+    outputs:
+      image-digest: ${{ steps.build.outputs.digest }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build application
+        env:
+          NODE_ENV: production
+          NEXT_TELEMETRY_DISABLED: 1
+        run: |
+          npm run db:generate
+          npm run build
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          tags: |
+            type=ref,event=branch
+            type=ref,event=pr
+            type=sha,prefix={{branch}}-
+            type=raw,value=latest,enable={{is_default_branch}}
+
+      - name: Build and push Docker image
+        id: build
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: ./docker/Dockerfile
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Generate build info
+        run: |
+          echo "{
+            \"version\": \"${{ github.sha }}\",
+            \"buildTime\": \"$(date -u +%Y-%m-%dT%H:%M:%SZ)\",
+            \"branch\": \"${{ github.ref_name }}\",
+            \"environment\": \"production\"
+          }" > public/build-info.json
+
+  # =============================================
+  # PRODUCTION DEPLOYMENT
+  # =============================================
+  deploy-production:
+    name: 🚀 Deploy to Production
+    runs-on: ubuntu-latest
+    needs: [build]
+    environment: 
+      name: production
+      url: https://workload.kemlu.go.id
+    steps:
+      - name: Deploy to Coolify
+        uses: fjogeleit/http-request-action@v1
+        id: deploy
+        with:
+          url: ${{ secrets.COOLIFY_PRODUCTION_WEBHOOK }}
+          method: 'POST'
+          customHeaders: |
+            {
+              "Authorization": "Bearer ${{ secrets.COOLIFY_TOKEN }}",
+              "Content-Type": "application/json"
+            }
+          data: |
+            {
+              "ref": "main",
+              "commit": "${{ github.sha }}",
+              "image": "${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.sha }}",
+              "environment": "production"
+            }
+
+      - name: Wait for deployment
+        run: |
+          echo "⏳ Waiting for deployment to complete..."
+          sleep 90
+
+      - name: Health check
+        run: |
+          echo "🏥 Performing health checks..."
+          
+          # Primary health check
+          if ! curl -f -m 30 https://workload.kemlu.go.id/api/health; then
+            echo "❌ Primary health check failed!"
+            exit 1
+          fi
+          
+          # Database connectivity check
+          if ! curl -f -m 30 https://workload.kemlu.go.id/api/health/database; then
+            echo "⚠️ Database health check failed!"
+            exit 1
+          fi
+          
+          echo "✅ All health checks passed!"
+
+      - name: Performance validation
+        run: |
+          echo "⚡ Running performance validation..."
+          
+          # Quick load time check
+          RESPONSE_TIME=$(curl -o /dev/null -s -w '%{time_total}' https://workload.kemlu.go.id)
+          if (( $(echo "$RESPONSE_TIME > 5.0" | bc -l) )); then
+            echo "⚠️ Response time $RESPONSE_TIME seconds exceeds threshold!"
+          else
+            echo "✅ Response time: $RESPONSE_TIME seconds"
+          fi
+
+  # =============================================
+  # POST-DEPLOYMENT VERIFICATION
+  # =============================================
+  post-deployment:
+    name: 📊 Post-Deployment Verification
+    runs-on: ubuntu-latest
+    needs: [deploy-production]
+    steps:
+      - name: Smoke tests
+        run: |
+          echo "🔥 Running production smoke tests..."
+          
+          # Test critical endpoints
+          curl -f https://workload.kemlu.go.id/api/health || exit 1
+          curl -f https://workload.kemlu.go.id/api/auth/validate || true
+          curl -f https://workload.kemlu.go.id/dashboard || exit 1
+          
+          echo "✅ Smoke tests completed"
+
+      - name: Update deployment status
+        run: |
+          echo "📝 Deployment completed successfully!"
+          echo "🌍 Production URL: https://workload.kemlu.go.id"
+          echo "📊 Commit: ${{ github.sha }}"
+          echo "⏰ Deployed at: $(date -u +%Y-%m-%dT%H:%M:%SZ)"
+
+  # =============================================
+  # NOTIFICATIONS
+  # =============================================
+  notify:
+    name: 📢 Notify Team
+    runs-on: ubuntu-latest
+    needs: [deploy-production, post-deployment]
+    if: always()
+    steps:
+      - name: Prepare notification
+        id: notification
+        run: |
+          if [[ "${{ needs.deploy-production.result }}" == "success" && "${{ needs.post-deployment.result }}" == "success" ]]; then
+            echo "status=success" >> $GITHUB_OUTPUT
+            echo "message=🎉 Production deployment successful!" >> $GITHUB_OUTPUT
+            echo "color=good" >> $GITHUB_OUTPUT
+          else
+            echo "status=failure" >> $GITHUB_OUTPUT
+            echo "message=❌ Production deployment failed!" >> $GITHUB_OUTPUT
+            echo "color=danger" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Slack notification
+        uses: 8398a7/action-slack@v3
+        if: env.SLACK_WEBHOOK != ''
+        with:
+          status: ${{ steps.notification.outputs.status }}
+          webhook_url: ${{ secrets.SLACK_WEBHOOK }}
+          fields: repo,message,commit,author,action,eventName,ref,workflow
+          custom_payload: |
+            {
+              "attachments": [
+                {
+                  "color": "${{ steps.notification.outputs.color }}",
+                  "title": "HPSB Workload Management - Production Deployment",
+                  "text": "${{ steps.notification.outputs.message }}",
+                  "fields": [
+                    {
+                      "title": "Environment",
+                      "value": "Production",
+                      "short": true
+                    },
+                    {
+                      "title": "Commit",
+                      "value": "${{ github.sha }}",
+                      "short": true
+                    },
+                    {
+                      "title": "URL",
+                      "value": "https://workload.kemlu.go.id",
+                      "short": false
+                    }
+                  ],
+                  "footer": "GitHub Actions",
+                  "ts": "${{ github.event.head_commit.timestamp }}"
+                }
+              ]
+            }
+
+      - name: Email notification
+        if: failure()
+        run: |
+          echo "📧 Sending failure notification email..."
+          # Email notification logic here
+          # This would integrate with your email service

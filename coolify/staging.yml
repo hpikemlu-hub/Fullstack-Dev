@@ -1,0 +1,163 @@
+# Coolify Staging Configuration
+# HPSB Workload Management System
+
+name: hpsb-workload-staging
+project: hpsb-workload-management
+environment: staging
+
+services:
+  # ==========================================
+  # APPLICATION SERVICE
+  # ==========================================
+  app:
+    name: workload-app-staging
+    image: "ghcr.io/username/hpsb-workload-management:staging"
+    ports:
+      - "3001:3000"
+    restart: unless-stopped
+    
+    # Reduced Resource Limits for Staging
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+          cpus: '0.5'
+        reservations:
+          memory: 256M
+          cpus: '0.25'
+    
+    # Environment Variables
+    environment:
+      - NODE_ENV=staging
+      - PORT=3000
+      - HOSTNAME=0.0.0.0
+      - DATABASE_URL=${STAGING_DATABASE_URL}
+      - JWT_SECRET=${STAGING_JWT_SECRET}
+      - JWT_REFRESH_SECRET=${STAGING_JWT_REFRESH_SECRET}
+      - ALLOWED_ORIGINS=https://staging.workload.kemlu.go.id
+      - REDIS_URL=redis://redis-staging:6379
+      - UPLOAD_PATH=/app/uploads
+      - NEXT_TELEMETRY_DISABLED=1
+      - LOG_LEVEL=debug
+      - ENABLE_METRICS=true
+      - HEALTH_CHECK_TIMEOUT=5000
+    
+    # Health Check
+    healthcheck:
+      test: ["CMD", "node", "healthcheck.js"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    
+    # Volumes
+    volumes:
+      - app-uploads-staging:/app/uploads
+    
+    # Dependencies
+    depends_on:
+      - postgres-staging
+      - redis-staging
+
+  # ==========================================
+  # DATABASE SERVICE
+  # ==========================================
+  postgres-staging:
+    name: workload-postgres-staging
+    image: postgres:15-alpine
+    restart: unless-stopped
+    
+    # Reduced resources for staging
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+          cpus: '0.5'
+        reservations:
+          memory: 256M
+          cpus: '0.25'
+    
+    environment:
+      - POSTGRES_DB=workload_staging
+      - POSTGRES_USER=${STAGING_POSTGRES_USER}
+      - POSTGRES_PASSWORD=${STAGING_POSTGRES_PASSWORD}
+    
+    volumes:
+      - postgres-staging-data:/var/lib/postgresql/data
+    
+    # Health Check
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${STAGING_POSTGRES_USER} -d workload_staging"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ==========================================
+  # REDIS CACHE SERVICE
+  # ==========================================
+  redis-staging:
+    name: workload-redis-staging
+    image: redis:7-alpine
+    restart: unless-stopped
+    
+    # Reduced resources for staging
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+          cpus: '0.25'
+        reservations:
+          memory: 128M
+          cpus: '0.125'
+    
+    command: >
+      redis-server
+      --maxmemory 256mb
+      --maxmemory-policy allkeys-lru
+      --appendonly yes
+    
+    volumes:
+      - redis-staging-data:/data
+    
+    # Health Check
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
+# ==========================================
+# VOLUMES
+# ==========================================
+volumes:
+  postgres-staging-data:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: /opt/coolify/staging/postgres-data
+  
+  redis-staging-data:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: /opt/coolify/staging/redis-data
+  
+  app-uploads-staging:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: /opt/coolify/staging/app-uploads
+
+# ==========================================
+# NETWORKS
+# ==========================================
+networks:
+  default:
+    name: hpsb-workload-staging
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.21.0.0/16
