@@ -2,8 +2,8 @@
 const nextConfig = {
   output: 'standalone', // Enable for Docker deployment
   serverExternalPackages: ['@prisma/client', 'bcryptjs'],
-  experimental: {
-    serverComponentsExternalPackages: ['@prisma/client', 'bcryptjs'],
+  turbopack: {
+    // Empty turbopack config for Next.js 16 compatibility
   },
   webpack: (config, { dev, isServer }) => {
     // WebSocket configuration for real-time features
