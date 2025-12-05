@@ -1,8 +1,8 @@
 # Unified Fullstack Dockerfile
 # Optimized for production deployment on Coolify
 
-# Stage 1: Dependencies
-FROM node:18-alpine AS deps
+# Stage 1: Dependencies  
+FROM node:20.11.1-alpine@sha256:6e80991f69cc7722c561e5d14d5e72ab47c0d6b6cfb3ae50fb9cf9a7b30fdf97 AS deps
 WORKDIR /app
 
 # Install system dependencies for better performance and security
@@ -18,7 +18,7 @@ COPY package.json package-lock.json* ./
 # Install production dependencies with optimizations
 RUN \
   if [ -f package-lock.json ]; then \
-    npm ci --only=production --frozen-lockfile --no-audit --no-fund; \
+    npm ci --only=production --frozen-lockfile --no-audit --no-fund --legacy-peer-deps; \
   else \
     echo "Lockfile not found." && exit 1; \
   fi
@@ -27,7 +27,7 @@ RUN \
 RUN npm cache clean --force
 
 # Stage 2: Builder
-FROM node:18-alpine AS builder
+FROM node:20.11.1-alpine@sha256:6e80991f69cc7722c561e5d14d5e72ab47c0d6b6cfb3ae50fb9cf9a7b30fdf97 AS builder
 WORKDIR /app
 
 # Install build dependencies
@@ -53,8 +53,8 @@ RUN npm run build
 RUN rm -rf node_modules && \
     npm ci --only=production --frozen-lockfile --no-audit --no-fund
 
-# Stage 3: Production image  
-FROM node:18-alpine AS runner
+# Stage 3: Production image
+FROM node:20.11.1-alpine@sha256:6e80991f69cc7722c561e5d14d5e72ab47c0d6b6cfb3ae50fb9cf9a7b30fdf97 AS runner
 WORKDIR /app
 
 # Install production runtime dependencies and security updates
