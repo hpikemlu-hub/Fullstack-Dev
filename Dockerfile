@@ -18,7 +18,7 @@ COPY package.json package-lock.json* ./
 # Install production dependencies with optimizations
 RUN \
   if [ -f package-lock.json ]; then \
-    npm ci --only=production --frozen-lockfile --no-audit --no-fund; \
+    npm ci --only=production --frozen-lockfile --no-audit --no-fund --legacy-peer-deps; \
   else \
     echo "Lockfile not found." && exit 1; \
   fi
