@@ -1,0 +1,32 @@
+{
+  "version": 2,
+  "name": "workload-management-fullstack",
+  "builds": [
+    {
+      "src": "package.json",
+      "use": "@vercel/next",
+      "config": {
+        "distDir": ".next"
+      }
+    }
+  ],
+  "routes": [
+    {
+      "src": "/api/(.*)",
+      "dest": "/api/$1"
+    },
+    {
+      "src": "/(.*)",
+      "dest": "/$1"
+    }
+  ],
+  "env": {
+    "NODE_ENV": "production",
+    "NEXT_TELEMETRY_DISABLED": "1"
+  },
+  "functions": {
+    "app/api/**/*.js": {
+      "runtime": "nodejs20.x"
+    }
+  }
+}
