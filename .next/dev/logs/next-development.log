@@ -1,0 +1,307 @@
+[00:11:16.195] Server  WARN     ⚠ Fast Refresh had to perform a full reload due to a runtime error.
+[00:11:16.211] Server  ERROR   TurbopackInternalError: Failed to write app endpoint /dashboard/page
+
+Caused by:
+- [project]/workload-app/fullstack-dev/app/globals.css [app-client] (css)
+- creating new process
+- node process exited before we could connect to it with exit status: 1
+
+Debug info:
+- Execution of get_written_endpoint_with_issues_operation failed
+- Execution of endpoint_write_to_disk failed
+- Execution of <AppEndpoint as Endpoint>::output failed
+- Failed to write app endpoint /dashboard/page
+- Execution of AppEndpoint::output failed
+- Execution of AppProject::app_module_graphs failed
+- Execution of *<AppEndpoint as Endpoint>::additional_entries failed
+- Execution of *ModuleGraph::from_graphs failed
+- Execution of SingleModuleGraph::new_with_entries_visited_intern failed
+- [project]/workload-app/fullstack-dev/app/globals.css [app-client] (css)
+- Execution of primary_chunkable_referenced_modules failed
+- Execution of <CssModuleAsset as Module>::references failed
+- Execution of parse_css failed
+- Execution of <PostCssTransformedAsset as Asset>::content failed
+- Execution of PostCssTransformedAsset::process failed
+- Execution of evaluate_webpack_loader failed
+- creating new process
+- node process exited before we could connect to it with exit status: 1
+  Process output:
+  
+  Process error output:
+  node:internal/modules/cjs/loader:1210
+    throw err;
+    ^
+  
+  Error: Cannot find module '/home/hpsb/workload-app/fullstack-dev/.next/dev/build/postcss.js'
+      at Module._resolveFilename (node:internal/modules/cjs/loader:1207:15)
+      at Module._load (node:internal/modules/cjs/loader:1038:27)
+      at Function.executeUserEntryPoint [as runMain] (node:internal/modules/run_main:164:12)
+      at node:internal/main/run_main_module:28:49 {
+    code: 'MODULE_NOT_FOUND',
+  }
+  
+  Node.js v20.19.5
+[00:11:16.223] Server  ERROR   TurbopackInternalError: Failed to write app endpoint /dashboard/page
+
+Caused by:
+- [project]/workload-app/fullstack-dev/app/globals.css [app-client] (css)
+- creating new process
+- node process exited before we could connect to it with exit status: 1
+
+Debug info:
+- Execution of get_written_endpoint_with_issues_operation failed
+- Execution of endpoint_write_to_disk failed
+- Execution of <AppEndpoint as Endpoint>::output failed
+- Failed to write app endpoint /dashboard/page
+- Execution of AppEndpoint::output failed
+- Execution of AppProject::app_module_graphs failed
+- Execution of *<AppEndpoint as Endpoint>::additional_entries failed
+- Execution of *ModuleGraph::from_graphs failed
+- Execution of SingleModuleGraph::new_with_entries_visited_intern failed
+- [project]/workload-app/fullstack-dev/app/globals.css [app-client] (css)
+- Execution of primary_chunkable_referenced_modules failed
+- Execution of <CssModuleAsset as Module>::references failed
+- Execution of parse_css failed
+- Execution of <PostCssTransformedAsset as Asset>::content failed
+- Execution of PostCssTransformedAsset::process failed
+- Execution of evaluate_webpack_loader failed
+- creating new process
+- node process exited before we could connect to it with exit status: 1
+  Process output:
+  
+  Process error output:
+  node:internal/modules/cjs/loader:1210
+    throw err;
+    ^
+  
+  Error: Cannot find module '/home/hpsb/workload-app/fullstack-dev/.next/dev/build/postcss.js'
+      at Module._resolveFilename (node:internal/modules/cjs/loader:1207:15)
+      at Module._load (node:internal/modules/cjs/loader:1038:27)
+      at Function.executeUserEntryPoint [as runMain] (node:internal/modules/run_main:164:12)
+      at node:internal/main/run_main_module:28:49 {
+    code: 'MODULE_NOT_FOUND',
+  }
+  
+  Node.js v20.19.5
+[00:11:16.235] Server  ERROR   TurbopackInternalError: Failed to write app endpoint /dashboard/page
+
+Caused by:
+- [project]/workload-app/fullstack-dev/app/globals.css [app-client] (css)
+- creating new process
+- node process exited before we could connect to it with exit status: 1
+
+Debug info:
+- Execution of get_written_endpoint_with_issues_operation failed
+- Execution of endpoint_write_to_disk failed
+- Execution of <AppEndpoint as Endpoint>::output failed
+- Failed to write app endpoint /dashboard/page
+- Execution of AppEndpoint::output failed
+- Execution of AppProject::app_module_graphs failed
+- Execution of *<AppEndpoint as Endpoint>::additional_entries failed
+- Execution of *ModuleGraph::from_graphs failed
+- Execution of SingleModuleGraph::new_with_entries_visited_intern failed
+- [project]/workload-app/fullstack-dev/app/globals.css [app-client] (css)
+- Execution of primary_chunkable_referenced_modules failed
+- Execution of <CssModuleAsset as Module>::references failed
+- Execution of parse_css failed
+- Execution of <PostCssTransformedAsset as Asset>::content failed
+- Execution of PostCssTransformedAsset::process failed
+- Execution of evaluate_webpack_loader failed
+- creating new process
+- node process exited before we could connect to it with exit status: 1
+  Process output:
+  
+  Process error output:
+  node:internal/modules/cjs/loader:1210
+    throw err;
+    ^
+  
+  Error: Cannot find module '/home/hpsb/workload-app/fullstack-dev/.next/dev/build/postcss.js'
+      at Module._resolveFilename (node:internal/modules/cjs/loader:1207:15)
+      at Module._load (node:internal/modules/cjs/loader:1038:27)
+      at Function.executeUserEntryPoint [as runMain] (node:internal/modules/run_main:164:12)
+      at node:internal/main/run_main_module:28:49 {
+    code: 'MODULE_NOT_FOUND',
+  }
+  
+  Node.js v20.19.5
+[00:11:16.244] Server  LOG      ✓ Compiled in 17.5s
+[00:11:16.257] Server  ERROR   TurbopackInternalError: Failed to write app endpoint /dashboard/page
+
+Caused by:
+- [project]/workload-app/fullstack-dev/app/globals.css [app-client] (css)
+- creating new process
+- node process exited before we could connect to it with exit status: 1
+
+Debug info:
+- Execution of get_written_endpoint_with_issues_operation failed
+- Execution of endpoint_write_to_disk failed
+- Execution of <AppEndpoint as Endpoint>::output failed
+- Failed to write app endpoint /dashboard/page
+- Execution of AppEndpoint::output failed
+- Execution of AppProject::app_module_graphs failed
+- Execution of *<AppEndpoint as Endpoint>::additional_entries failed
+- Execution of *ModuleGraph::from_graphs failed
+- Execution of SingleModuleGraph::new_with_entries_visited_intern failed
+- [project]/workload-app/fullstack-dev/app/globals.css [app-client] (css)
+- Execution of primary_chunkable_referenced_modules failed
+- Execution of <CssModuleAsset as Module>::references failed
+- Execution of parse_css failed
+- Execution of <PostCssTransformedAsset as Asset>::content failed
+- Execution of PostCssTransformedAsset::process failed
+- Execution of evaluate_webpack_loader failed
+- creating new process
+- node process exited before we could connect to it with exit status: 1
+  Process output:
+  
+  Process error output:
+  node:internal/modules/cjs/loader:1210
+    throw err;
+    ^
+  
+  Error: Cannot find module '/home/hpsb/workload-app/fullstack-dev/.next/dev/build/postcss.js'
+      at Module._resolveFilename (node:internal/modules/cjs/loader:1207:15)
+      at Module._load (node:internal/modules/cjs/loader:1038:27)
+      at Function.executeUserEntryPoint [as runMain] (node:internal/modules/run_main:164:12)
+      at node:internal/main/run_main_module:28:49 {
+    code: 'MODULE_NOT_FOUND',
+  }
+  
+  Node.js v20.19.5
+[00:11:16.270] Server  ERROR   TurbopackInternalError: Failed to write app endpoint /dashboard/page
+
+Caused by:
+- [project]/workload-app/fullstack-dev/app/globals.css [app-client] (css)
+- creating new process
+- node process exited before we could connect to it with exit status: 1
+
+Debug info:
+- Execution of get_written_endpoint_with_issues_operation failed
+- Execution of endpoint_write_to_disk failed
+- Execution of <AppEndpoint as Endpoint>::output failed
+- Failed to write app endpoint /dashboard/page
+- Execution of AppEndpoint::output failed
+- Execution of AppProject::app_module_graphs failed
+- Execution of *<AppEndpoint as Endpoint>::additional_entries failed
+- Execution of *ModuleGraph::from_graphs failed
+- Execution of SingleModuleGraph::new_with_entries_visited_intern failed
+- [project]/workload-app/fullstack-dev/app/globals.css [app-client] (css)
+- Execution of primary_chunkable_referenced_modules failed
+- Execution of <CssModuleAsset as Module>::references failed
+- Execution of parse_css failed
+- Execution of <PostCssTransformedAsset as Asset>::content failed
+- Execution of PostCssTransformedAsset::process failed
+- Execution of evaluate_webpack_loader failed
+- creating new process
+- node process exited before we could connect to it with exit status: 1
+  Process output:
+  
+  Process error output:
+  node:internal/modules/cjs/loader:1210
+    throw err;
+    ^
+  
+  Error: Cannot find module '/home/hpsb/workload-app/fullstack-dev/.next/dev/build/postcss.js'
+      at Module._resolveFilename (node:internal/modules/cjs/loader:1207:15)
+      at Module._load (node:internal/modules/cjs/loader:1038:27)
+      at Function.executeUserEntryPoint [as runMain] (node:internal/modules/run_main:164:12)
+      at node:internal/main/run_main_module:28:49 {
+    code: 'MODULE_NOT_FOUND',
+  }
+  
+  Node.js v20.19.5
+[00:11:16.922] Server  ERROR    ⨯ Error: ENOENT: no such file or directory, open '/home/hpsb/workload-app/fullstack-dev/.next/dev/static/development/_buildManifest.js.tmp.61gpz6lpqm8'
+[00:11:16.948] Server  ERROR    ⨯ Error: Cannot find module '../chunks/ssr/[turbopack]_runtime.js'
+Require stack:
+- /home/hpsb/workload-app/fullstack-dev/.next/dev/server/pages/_document.js
+- /home/hpsb/workload-app/fullstack-dev/node_modules/next/dist/server/require.js
+- /home/hpsb/workload-app/fullstack-dev/node_modules/next/dist/server/load-components.js
+- /home/hpsb/workload-app/fullstack-dev/node_modules/next/dist/build/utils.js
+- /home/hpsb/workload-app/fullstack-dev/node_modules/next/dist/build/swc/options.js
+- /home/hpsb/workload-app/fullstack-dev/node_modules/next/dist/build/swc/index.js
+- /home/hpsb/workload-app/fullstack-dev/node_modules/next/dist/server/lib/router-utils/setup-dev-bundler.js
+- /home/hpsb/workload-app/fullstack-dev/node_modules/next/dist/server/lib/router-server.js
+- /home/hpsb/workload-app/fullstack-dev/node_modules/next/dist/server/lib/start-server.js
+[00:11:16.966] Server  ERROR    ⨯ Error: Cannot find module '../chunks/ssr/[turbopack]_runtime.js'
+Require stack:
+- /home/hpsb/workload-app/fullstack-dev/.next/dev/server/pages/_document.js
+- /home/hpsb/workload-app/fullstack-dev/node_modules/next/dist/server/require.js
+- /home/hpsb/workload-app/fullstack-dev/node_modules/next/dist/server/load-components.js
+- /home/hpsb/workload-app/fullstack-dev/node_modules/next/dist/build/utils.js
+- /home/hpsb/workload-app/fullstack-dev/node_modules/next/dist/build/swc/options.js
+- /home/hpsb/workload-app/fullstack-dev/node_modules/next/dist/build/swc/index.js
+- /home/hpsb/workload-app/fullstack-dev/node_modules/next/dist/server/lib/router-utils/setup-dev-bundler.js
+- /home/hpsb/workload-app/fullstack-dev/node_modules/next/dist/server/lib/router-server.js
+- /home/hpsb/workload-app/fullstack-dev/node_modules/next/dist/server/lib/start-server.js
+[00:11:17.004] Server  ERROR    ⨯ Error: Cannot find module '../chunks/ssr/[turbopack]_runtime.js'
+Require stack:
+- /home/hpsb/workload-app/fullstack-dev/.next/dev/server/pages/_document.js
+- /home/hpsb/workload-app/fullstack-dev/node_modules/next/dist/server/require.js
+- /home/hpsb/workload-app/fullstack-dev/node_modules/next/dist/server/load-components.js
+- /home/hpsb/workload-app/fullstack-dev/node_modules/next/dist/build/utils.js
+- /home/hpsb/workload-app/fullstack-dev/node_modules/next/dist/build/swc/options.js
+- /home/hpsb/workload-app/fullstack-dev/node_modules/next/dist/build/swc/index.js
+- /home/hpsb/workload-app/fullstack-dev/node_modules/next/dist/server/lib/router-utils/setup-dev-bundler.js
+- /home/hpsb/workload-app/fullstack-dev/node_modules/next/dist/server/lib/router-server.js
+- /home/hpsb/workload-app/fullstack-dev/node_modules/next/dist/server/lib/start-server.js
+[00:11:17.025] Server  ERROR    ⨯ Error: Cannot find module '../chunks/ssr/[turbopack]_runtime.js'
+Require stack:
+- /home/hpsb/workload-app/fullstack-dev/.next/dev/server/pages/_document.js
+- /home/hpsb/workload-app/fullstack-dev/node_modules/next/dist/server/require.js
+- /home/hpsb/workload-app/fullstack-dev/node_modules/next/dist/server/load-components.js
+- /home/hpsb/workload-app/fullstack-dev/node_modules/next/dist/build/utils.js
+- /home/hpsb/workload-app/fullstack-dev/node_modules/next/dist/build/swc/options.js
+- /home/hpsb/workload-app/fullstack-dev/node_modules/next/dist/build/swc/index.js
+- /home/hpsb/workload-app/fullstack-dev/node_modules/next/dist/server/lib/router-utils/setup-dev-bundler.js
+- /home/hpsb/workload-app/fullstack-dev/node_modules/next/dist/server/lib/router-server.js
+- /home/hpsb/workload-app/fullstack-dev/node_modules/next/dist/server/lib/start-server.js
+[00:11:17.126] Server  ERROR   Error: Cannot find module '/home/hpsb/workload-app/fullstack-dev/node_modules/styled-jsx/index.js'
+Require stack:
+- /home/hpsb/workload-app/node_modules/next/dist/compiled/next-server/pages-turbo.runtime.dev.js
+- /home/hpsb/workload-app/node_modules/next/dist/server/route-modules/pages/module.compiled.js
+- /home/hpsb/workload-app/node_modules/next/dist/server/route-modules/pages/vendored/contexts/html-context.js
+- /home/hpsb/workload-app/node_modules/next/dist/pages/_document.js
+- /home/hpsb/workload-app/fullstack-dev/node_modules/next/dist/server/load-default-error-components.js
+- /home/hpsb/workload-app/fullstack-dev/node_modules/next/dist/server/dev/next-dev-server.js
+- /home/hpsb/workload-app/fullstack-dev/node_modules/next/dist/server/next.js
+- /home/hpsb/workload-app/fullstack-dev/node_modules/next/dist/server/lib/start-server.js
+[00:11:17.185] Server  ERROR   Error: Cannot find module '/home/hpsb/workload-app/fullstack-dev/node_modules/styled-jsx/index.js'
+Require stack:
+- /home/hpsb/workload-app/node_modules/next/dist/compiled/next-server/pages-turbo.runtime.dev.js
+- /home/hpsb/workload-app/node_modules/next/dist/server/route-modules/pages/module.compiled.js
+- /home/hpsb/workload-app/node_modules/next/dist/server/route-modules/pages/vendored/contexts/html-context.js
+- /home/hpsb/workload-app/node_modules/next/dist/pages/_document.js
+- /home/hpsb/workload-app/fullstack-dev/node_modules/next/dist/server/load-default-error-components.js
+- /home/hpsb/workload-app/fullstack-dev/node_modules/next/dist/server/dev/next-dev-server.js
+- /home/hpsb/workload-app/fullstack-dev/node_modules/next/dist/server/next.js
+- /home/hpsb/workload-app/fullstack-dev/node_modules/next/dist/server/lib/start-server.js
+[00:11:17.245] Server  ERROR   Error: Cannot find module '/home/hpsb/workload-app/fullstack-dev/node_modules/styled-jsx/index.js'
+Require stack:
+- /home/hpsb/workload-app/node_modules/next/dist/compiled/next-server/pages-turbo.runtime.dev.js
+- /home/hpsb/workload-app/node_modules/next/dist/server/route-modules/pages/module.compiled.js
+- /home/hpsb/workload-app/node_modules/next/dist/server/route-modules/pages/vendored/contexts/html-context.js
+- /home/hpsb/workload-app/node_modules/next/dist/pages/_document.js
+- /home/hpsb/workload-app/fullstack-dev/node_modules/next/dist/server/load-default-error-components.js
+- /home/hpsb/workload-app/fullstack-dev/node_modules/next/dist/server/dev/next-dev-server.js
+- /home/hpsb/workload-app/fullstack-dev/node_modules/next/dist/server/next.js
+- /home/hpsb/workload-app/fullstack-dev/node_modules/next/dist/server/lib/start-server.js
+[00:11:17.295] Server  ERROR   Error: Cannot find module '/home/hpsb/workload-app/fullstack-dev/node_modules/styled-jsx/index.js'
+Require stack:
+- /home/hpsb/workload-app/node_modules/next/dist/compiled/next-server/pages-turbo.runtime.dev.js
+- /home/hpsb/workload-app/node_modules/next/dist/server/route-modules/pages/module.compiled.js
+- /home/hpsb/workload-app/node_modules/next/dist/server/route-modules/pages/vendored/contexts/html-context.js
+- /home/hpsb/workload-app/node_modules/next/dist/pages/_document.js
+- /home/hpsb/workload-app/fullstack-dev/node_modules/next/dist/server/load-default-error-components.js
+- /home/hpsb/workload-app/fullstack-dev/node_modules/next/dist/server/dev/next-dev-server.js
+- /home/hpsb/workload-app/fullstack-dev/node_modules/next/dist/server/next.js
+- /home/hpsb/workload-app/fullstack-dev/node_modules/next/dist/server/lib/start-server.js
+[00:11:17.343] Server  ERROR   Error: Cannot find module '/home/hpsb/workload-app/fullstack-dev/node_modules/styled-jsx/index.js'
+Require stack:
+- /home/hpsb/workload-app/node_modules/next/dist/compiled/next-server/pages-turbo.runtime.dev.js
+- /home/hpsb/workload-app/node_modules/next/dist/server/route-modules/pages/module.compiled.js
+- /home/hpsb/workload-app/node_modules/next/dist/server/route-modules/pages/vendored/contexts/html-context.js
+- /home/hpsb/workload-app/node_modules/next/dist/pages/_document.js
+- /home/hpsb/workload-app/fullstack-dev/node_modules/next/dist/server/load-default-error-components.js
+- /home/hpsb/workload-app/fullstack-dev/node_modules/next/dist/server/dev/next-dev-server.js
+- /home/hpsb/workload-app/fullstack-dev/node_modules/next/dist/server/next.js
+- /home/hpsb/workload-app/fullstack-dev/node_modules/next/dist/server/lib/start-server.js
