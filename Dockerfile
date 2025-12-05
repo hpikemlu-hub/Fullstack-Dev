@@ -2,7 +2,7 @@
 # Optimized for production deployment on Coolify
 
 # Stage 1: Dependencies
-FROM node:20-alpine AS deps
+FROM node:18-alpine AS deps
 WORKDIR /app
 
 # Install system dependencies for better performance and security
@@ -18,7 +18,7 @@ COPY package.json package-lock.json* ./
 # Install production dependencies with optimizations
 RUN \
   if [ -f package-lock.json ]; then \
-    npm ci --only=production --frozen-lockfile --no-audit --no-fund --legacy-peer-deps; \
+    npm ci --only=production --frozen-lockfile --no-audit --no-fund; \
   else \
     echo "Lockfile not found." && exit 1; \
   fi
@@ -27,7 +27,7 @@ RUN \
 RUN npm cache clean --force
 
 # Stage 2: Builder
-FROM node:20-alpine AS builder
+FROM node:18-alpine AS builder
 WORKDIR /app
 
 # Install build dependencies
@@ -54,7 +54,7 @@ RUN rm -rf node_modules && \
     npm ci --only=production --frozen-lockfile --no-audit --no-fund
 
 # Stage 3: Production image  
-FROM node:20-alpine AS runner
+FROM node:18-alpine AS runner
 WORKDIR /app
 
 # Install production runtime dependencies and security updates
@@ -97,8 +97,8 @@ USER nextjs
 # Expose port
 EXPOSE 3000
 
-ENV PORT=3000
-ENV HOSTNAME="0.0.0.0"
+ENV PORT 3000
+ENV HOSTNAME "0.0.0.0"
 
 # Create healthcheck script
 RUN echo '#!/usr/bin/env node\n\
