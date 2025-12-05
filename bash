@@ -1,0 +1,9 @@
+🚀 Starting Coolify deployment preparation...
+✅ Directory validation passed
+🔍 Checking environment variables...
+⚠️  Warning: DATABASE_URL is not set (will be configured in Coolify)
+⚠️  Warning: JWT_SECRET is not set (will be configured in Coolify)
+⚠️  Warning: JWT_REFRESH_SECRET is not set (will be configured in Coolify)
+✅ Environment variables check completed
+🔍 Running pre-deployment checks...
+❌ Error: Docker is not installed or not in PATH

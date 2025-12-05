@@ -1,8 +1,8 @@
 # Unified Fullstack Dockerfile
 # Optimized for production deployment on Coolify
 
-# Stage 1: Dependencies  
-FROM node:20.11.1-alpine@sha256:6e80991f69cc7722c561e5d14d5e72ab47c0d6b6cfb3ae50fb9cf9a7b30fdf97 AS deps
+# Stage 1: Dependencies
+FROM node:18-alpine AS deps
 WORKDIR /app
 
 # Install system dependencies for better performance and security
@@ -18,7 +18,7 @@ COPY package.json package-lock.json* ./
 # Install production dependencies with optimizations
 RUN \
   if [ -f package-lock.json ]; then \
-    npm ci --only=production --frozen-lockfile --no-audit --no-fund --legacy-peer-deps; \
+    npm ci --only=production --frozen-lockfile --no-audit --no-fund; \
   else \
     echo "Lockfile not found." && exit 1; \
   fi
@@ -27,7 +27,7 @@ RUN \
 RUN npm cache clean --force
 
 # Stage 2: Builder
-FROM node:20.11.1-alpine@sha256:6e80991f69cc7722c561e5d14d5e72ab47c0d6b6cfb3ae50fb9cf9a7b30fdf97 AS builder
+FROM node:18-alpine AS builder
 WORKDIR /app
 
 # Install build dependencies
@@ -54,7 +54,7 @@ RUN rm -rf node_modules && \
     npm ci --only=production --frozen-lockfile --no-audit --no-fund
 
 # Stage 3: Production image
-FROM node:20.11.1-alpine@sha256:6e80991f69cc7722c561e5d14d5e72ab47c0d6b6cfb3ae50fb9cf9a7b30fdf97 AS runner
+FROM node:18-alpine AS runner
 WORKDIR /app
 
 # Install production runtime dependencies and security updates
@@ -99,6 +99,11 @@ EXPOSE 3000
 
 ENV PORT 3000
 ENV HOSTNAME "0.0.0.0"
+
+# Add Coolify-specific labels
+LABEL coolify.managed="true"
+LABEL coolify.version="latest"
+LABEL coolify.type="application"
 
 # Create healthcheck script
 RUN echo '#!/usr/bin/env node\n\
