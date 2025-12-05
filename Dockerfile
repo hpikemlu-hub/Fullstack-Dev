@@ -2,7 +2,7 @@
 # Optimized for production deployment on Coolify
 
 # Stage 1: Dependencies
-FROM node:18-alpine AS deps
+FROM node:20-alpine AS deps
 WORKDIR /app
 
 # Install system dependencies for better performance and security
@@ -27,7 +27,7 @@ RUN \
 RUN npm cache clean --force
 
 # Stage 2: Builder
-FROM node:18-alpine AS builder
+FROM node:20-alpine AS builder
 WORKDIR /app
 
 # Install build dependencies
@@ -54,7 +54,7 @@ RUN rm -rf node_modules && \
     npm ci --only=production --frozen-lockfile --no-audit --no-fund
 
 # Stage 3: Production image  
-FROM node:18-alpine AS runner
+FROM node:20-alpine AS runner
 WORKDIR /app
 
 # Install production runtime dependencies and security updates
