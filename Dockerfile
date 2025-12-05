@@ -51,7 +51,7 @@ RUN npm run build
 
 # Remove development dependencies to reduce size
 RUN rm -rf node_modules && \
-    npm ci --only=production --frozen-lockfile --no-audit --no-fund
+    npm ci --only=production --frozen-lockfile --no-audit --no-fund --legacy-peer-deps
 
 # Stage 3: Production image
 FROM node:20.11.1-alpine@sha256:6e80991f69cc7722c561e5d14d5e72ab47c0d6b6cfb3ae50fb9cf9a7b30fdf97 AS runner
@@ -97,8 +97,8 @@ USER nextjs
 # Expose port
 EXPOSE 3000
 
-ENV PORT 3000
-ENV HOSTNAME "0.0.0.0"
+ENV PORT=3000
+ENV HOSTNAME="0.0.0.0"
 
 # Add Coolify-specific labels
 LABEL coolify.managed="true"
