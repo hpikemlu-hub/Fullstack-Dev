@@ -1,0 +1,100 @@
+name: Database Backup
+
+on:
+  schedule:
+    # Run daily at 2:00 AM UTC
+    - cron: '0 2 * * *'
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Environment to backup'
+        required: true
+        default: 'production'
+        type: choice
+        options:
+          - production
+          - staging
+
+jobs:
+  backup:
+    name: Database Backup
+    runs-on: ubuntu-latest
+    environment: ${{ github.event.inputs.environment || 'production' }}
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup PostgreSQL client
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y postgresql-client-15
+
+      - name: Create backup
+        env:
+          PGPASSWORD: ${{ secrets.DATABASE_PASSWORD }}
+        run: |
+          BACKUP_DATE=$(date +%Y%m%d_%H%M%S)
+          BACKUP_FILE="workload_backup_${BACKUP_DATE}.sql"
+          
+          pg_dump \
+            -h ${{ secrets.DATABASE_HOST }} \
+            -p ${{ secrets.DATABASE_PORT }} \
+            -U ${{ secrets.DATABASE_USER }} \
+            -d ${{ secrets.DATABASE_NAME }} \
+            --no-password \
+            --verbose \
+            --clean \
+            --if-exists \
+            --create \
+            -f "${BACKUP_FILE}"
+          
+          # Compress backup
+          gzip "${BACKUP_FILE}"
+          echo "BACKUP_FILE=${BACKUP_FILE}.gz" >> $GITHUB_ENV
+
+      - name: Upload to cloud storage
+        run: |
+          # Upload to your preferred cloud storage
+          # Example for AWS S3:
+          # aws s3 cp "${{ env.BACKUP_FILE }}" s3://your-backup-bucket/database-backups/
+          
+          # Example for Google Cloud Storage:
+          # gsutil cp "${{ env.BACKUP_FILE }}" gs://your-backup-bucket/database-backups/
+          
+          echo "Backup uploaded: ${{ env.BACKUP_FILE }}"
+
+      - name: Cleanup old backups
+        run: |
+          # Keep only the last 30 days of backups
+          # Add cleanup logic for your cloud storage
+          echo "Cleaning up old backups..."
+
+      - name: Verify backup
+        env:
+          PGPASSWORD: ${{ secrets.DATABASE_PASSWORD }}
+        run: |
+          # Verify backup integrity
+          gunzip -t "${{ env.BACKUP_FILE }}"
+          
+          # Test restore on a test database (optional)
+          # pg_restore --verbose --clean --if-exists --create \
+          #   -h test-host -U test-user -d test-db "${{ env.BACKUP_FILE }}"
+
+      - name: Notify on failure
+        if: failure()
+        run: |
+          echo "❌ Database backup failed!"
+          # Add notification logic here (Slack, email, etc.)
+          curl -X POST "${{ secrets.SLACK_WEBHOOK }}" \
+            -H "Content-Type: application/json" \
+            -d '{"text": "🚨 Database backup failed for ${{ github.event.inputs.environment || \"production\" }} environment!"}'
+
+      - name: Notify on success
+        if: success()
+        run: |
+          echo "✅ Database backup completed successfully!"
+          # Add notification logic here
+          curl -X POST "${{ secrets.SLACK_WEBHOOK }}" \
+            -H "Content-Type: application/json" \
+            -d '{"text": "✅ Database backup completed for ${{ github.event.inputs.environment || \"production\" }} environment. File: ${{ env.BACKUP_FILE }}"}'

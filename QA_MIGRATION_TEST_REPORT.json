@@ -1,0 +1,125 @@
+{
+  "buildReliability": [
+    {
+      "attempt": 1,
+      "success": true,
+      "time": 30116,
+      "errors": []
+    },
+    {
+      "attempt": 2,
+      "success": true,
+      "time": 30923,
+      "errors": []
+    },
+    {
+      "attempt": 3,
+      "success": true,
+      "time": 31134,
+      "errors": []
+    }
+  ],
+  "featureParity": {
+    "Homepage Load": {
+      "accessible": true,
+      "status": 200,
+      "loadTime": "N/A"
+    },
+    "Authentication Page": {
+      "accessible": true,
+      "status": 200,
+      "loadTime": "N/A"
+    },
+    "Dashboard": {
+      "accessible": true,
+      "status": 200,
+      "loadTime": "N/A"
+    },
+    "Employee Management": {
+      "accessible": true,
+      "status": 200,
+      "loadTime": "N/A"
+    },
+    "Workload Management": {
+      "accessible": true,
+      "status": 200,
+      "loadTime": "N/A"
+    },
+    "Calendar": {
+      "accessible": true,
+      "status": 200,
+      "loadTime": "N/A"
+    }
+  },
+  "performance": {
+    "/": {
+      "loadTime": 27,
+      "status": 200,
+      "size": "N/A",
+      "benchmark": "PASS"
+    },
+    "/dashboard": {
+      "loadTime": 26,
+      "status": 200,
+      "size": "N/A",
+      "benchmark": "PASS"
+    },
+    "/employees": {
+      "loadTime": 28,
+      "status": 200,
+      "size": "N/A",
+      "benchmark": "PASS"
+    },
+    "/workload": {
+      "loadTime": 29,
+      "status": 200,
+      "size": "N/A",
+      "benchmark": "PASS"
+    }
+  },
+  "uiConsistency": {},
+  "crossBrowser": {},
+  "apiEndpoints": {
+    "/api/health": {
+      "status": 503,
+      "ok": false,
+      "responseTime": "N/A",
+      "contentType": "application/json"
+    },
+    "/api/dashboard/stats": {
+      "status": 500,
+      "ok": false,
+      "responseTime": "N/A",
+      "contentType": "application/json"
+    },
+    "/api/employees": {
+      "status": 401,
+      "ok": false,
+      "responseTime": "N/A",
+      "contentType": "application/json"
+    },
+    "/api/calendar/events": {
+      "status": 404,
+      "ok": false,
+      "responseTime": "N/A",
+      "contentType": "text/html; charset=utf-8"
+    },
+    "/api/metrics": {
+      "status": 200,
+      "ok": true,
+      "responseTime": "N/A",
+      "contentType": "application/json"
+    }
+  },
+  "timestamp": "2025-12-06T08:26:54.855Z",
+  "summary": {
+    "passed": 14,
+    "failed": 4,
+    "warnings": 0
+  },
+  "goNoGoDecision": {
+    "decision": "NO-GO",
+    "confidence": "LOW",
+    "reasoning": "4 critical issues found. Address before deployment."
+  }
+}

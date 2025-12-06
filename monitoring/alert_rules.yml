@@ -1,0 +1,59 @@
+# Prometheus Alert Rules
+groups:
+  - name: nodejs_alerts
+    rules:
+      - alert: HighMemoryUsage
+        expr: nodejs_memory_heap_used_bytes / nodejs_memory_heap_total_bytes > 0.9
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High memory usage detected"
+          description: "Memory usage is above 90% for more than 5 minutes"
+
+      - alert: HighCPUUsage
+        expr: rate(nodejs_cpu_user_seconds[5m]) > 0.8
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High CPU usage detected"
+          description: "CPU usage is above 80% for more than 5 minutes"
+
+      - alert: ApplicationDown
+        expr: up{job="nodejs-app"} == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Application is down"
+          description: "The Node.js application has been down for more than 1 minute"
+
+      - alert: HealthCheckFailing
+        expr: up{job="app-health"} == 0
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Health check is failing"
+          description: "Application health check has been failing for more than 2 minutes"
+
+  - name: system_alerts
+    rules:
+      - alert: HighDiskUsage
+        expr: (node_filesystem_avail_bytes{mountpoint="/"} / node_filesystem_size_bytes{mountpoint="/"}) < 0.1
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High disk usage"
+          description: "Disk usage is above 90%"
+
+      - alert: HighSystemMemoryUsage
+        expr: (1 - (node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes)) > 0.9
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High system memory usage"
+          description: "System memory usage is above 90%"

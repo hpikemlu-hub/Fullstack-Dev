@@ -1,0 +1,18 @@
+[build]
+  command = "npm ci --legacy-peer-deps --force && npm run build"
+  publish = ".next"
+
+[build.environment]
+  NODE_VERSION = "20.11.1"
+  NPM_VERSION = "10"
+  NPM_CONFIG_LEGACY_PEER_DEPS = "true"
+  NEXT_TELEMETRY_DISABLED = "1"
+
+[[plugins]]
+  package = "@netlify/plugin-nextjs"
+
+[context.production]
+  command = "npm ci --legacy-peer-deps --force && npm run build"
+
+[context.deploy-preview]
+  command = "npm ci --legacy-peer-deps --force && npm run build"

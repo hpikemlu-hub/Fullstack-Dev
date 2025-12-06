@@ -1,0 +1,32 @@
+# NUCLEAR NIXPACKS - FORCES NODE 20 AND LEGACY PEER DEPS
+[providers]
+node = "20.11.1"
+
+[phases.setup]
+cmds = [
+  "npm cache clean --force || true",
+  "rm -rf ~/.npm || true",
+  "echo 'legacy-peer-deps=true' > .npmrc",
+  "echo 'fund=false' >> .npmrc", 
+  "echo 'audit=false' >> .npmrc",
+  "echo 'registry=https://registry.npmjs.org/' >> .npmrc",
+  "cat .npmrc"
+]
+
+[phases.install]
+cmds = [
+  "npm ci --legacy-peer-deps --frozen-lockfile --no-audit --no-fund --verbose --force"
+]
+
+[phases.build]
+cmds = [
+  "npx prisma generate",
+  "npm run build"
+]
+
+[start]
+cmd = "npm start"
+
+[variables]
+NODE_ENV = "production"
+NEXT_TELEMETRY_DISABLED = "1"
