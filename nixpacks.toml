@@ -23,6 +23,8 @@ cmds = [
 [phases.build]
 cmds = [
   "npx prisma generate",
+  "npx prisma db push --accept-data-loss",
+  "npx prisma db seed",
   "npm run build"
 ]
 
@@ -32,3 +34,6 @@ cmd = "npm start"
 [variables]
 NODE_ENV = "production"
 NEXT_TELEMETRY_DISABLED = "1"
+DATABASE_URL = "file:./production.db"
+JWT_SECRET = "production-fallback-secret"
+JWT_REFRESH_SECRET = "production-fallback-refresh"
