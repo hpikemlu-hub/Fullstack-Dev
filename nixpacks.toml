@@ -1,8 +1,7 @@
-# WORKING NIXPACKS - NODE 20 + LEGACY PEER DEPS
-providers = ["node"]
+# Clean Nixpacks Configuration for Next.js
+# Node 20 + Legacy Peer Deps for Stable Build
 
-[providers.node]
-version = "20.11.1"
+providers = ["node"]
 
 [phases.setup]
 cmds = [
