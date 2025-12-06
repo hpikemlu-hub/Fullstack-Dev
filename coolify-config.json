@@ -1,0 +1,78 @@
+{
+  "name": "production-app",
+  "description": "Production Node.js application with monitoring",
+  "environment": "production",
+  "dockerfile_path": "./Dockerfile.optimized",
+  "build_pack": "dockerfile",
+  "domains": [
+    {
+      "domain": "app.example.com",
+      "redirect_to_https": true
+    }
+  ],
+  "environment_variables": [
+    {
+      "key": "NODE_ENV",
+      "value": "production",
+      "is_build_time": true
+    },
+    {
+      "key": "PORT",
+      "value": "3000",
+      "is_build_time": false
+    },
+    {
+      "key": "CACHE_VERSION",
+      "value": "{{BUILD_TIMESTAMP}}",
+      "is_build_time": true
+    },
+    {
+      "key": "BUILD_HASH",
+      "value": "{{GIT_COMMIT_SHA}}",
+      "is_build_time": true
+    }
+  ],
+  "resource_limits": {
+    "memory": "512Mi",
+    "memory_limit": "1Gi",
+    "cpu": "500m",
+    "cpu_limit": "1000m"
+  },
+  "health_check": {
+    "enabled": true,
+    "path": "/api/health",
+    "port": 3000,
+    "interval": 30,
+    "timeout": 10,
+    "retries": 3,
+    "start_period": 30
+  },
+  "deployment": {
+    "zero_downtime": true,
+    "restart_policy": "unless-stopped",
+    "auto_deploy": false,
+    "build_command": "npm run build",
+    "start_command": "npm start",
+    "pre_deployment_command": "npm run db:migrate",
+    "post_deployment_command": "npm run cache:warm"
+  },
+  "monitoring": {
+    "prometheus": {
+      "enabled": true,
+      "port": 9090,
+      "path": "/metrics"
+    },
+    "logs": {
+      "driver": "json-file",
+      "options": {
+        "max-size": "10m",
+        "max-file": "3"
+      }
+    }
+  },
+  "backup": {
+    "enabled": true,
+    "schedule": "0 2 * * *",
+    "retention": "7d"
+  }
+}

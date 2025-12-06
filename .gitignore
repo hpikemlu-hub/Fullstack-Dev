@@ -1,0 +1,153 @@
+# HPSB Workload Management System - Git Ignore Configuration
+
+# ====================================
+# DEPENDENCIES
+# ====================================
+/node_modules
+/fullstack-dev/node_modules
+/.pnp
+.pnp.*
+.yarn/*
+!.yarn/patches
+!.yarn/plugins
+!.yarn/releases
+!.yarn/versions
+
+# ====================================
+# BUILD OUTPUTS
+# ====================================
+/.next/
+/fullstack-dev/.next/
+/out/
+/build
+/dist/
+
+# ====================================
+# ENVIRONMENT FILES
+# ====================================
+.env
+.env*.local
+.env.production
+.env.staging
+/fullstack-dev/.env
+/fullstack-dev/.env*.local
+/fullstack-dev/.env.production
+/fullstack-dev/.env.staging
+
+# Keep templates
+!.env.example
+!/fullstack-dev/.env.example
+
+# ====================================
+# TESTING
+# ====================================
+/coverage
+/test-results/
+/playwright-report/
+/blob-report/
+/playwright/.cache/
+/fullstack-dev/coverage
+/fullstack-dev/test-results/
+/fullstack-dev/playwright-report/
+
+# ====================================
+# DEVELOPMENT FILES
+# ====================================
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+/fullstack-dev/*.log
+/fullstack-dev/app.log
+
+# ====================================
+# DATABASE FILES
+# ====================================
+*.db
+*.db-journal
+*.sqlite
+*.sqlite3
+/fullstack-dev/prisma/dev.db*
+/database/*.db
+
+# ====================================
+# SYSTEM & OS FILES
+# ====================================
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+*.pem
+
+# ====================================
+# IDEs AND EDITORS
+# ====================================
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# ====================================
+# TEMPORARY FILES
+# ====================================
+*.tmp
+*.temp
+tmp/
+temp/
+*.bak
+*.backup
+*.old
+tmp_rovodev_*
+
+# ====================================
+# TYPESCRIPT
+# ====================================
+*.tsbuildinfo
+next-env.d.ts
+/fullstack-dev/*.tsbuildinfo
+/fullstack-dev/next-env.d.ts
+
+# ====================================
+# DEPLOYMENT PLATFORMS
+# ====================================
+.vercel
+.netlify
+
+# ====================================
+# CACHE DIRECTORIES
+# ====================================
+.cache/
+.parcel-cache/
+.eslintcache
+.npm
+.rpt2_cache/
+.rts2_cache_cjs/
+.rts2_cache_es/
+.rts2_cache_umd/
+
+# ====================================
+# RUNTIME DATA
+# ====================================
+pids/
+*.pid
+*.seed
+*.pid.lock
+.node_repl_history
+*.tgz
+.yarn-integrity
+
+# ====================================
+# BUILD INFO (Generated)
+# ====================================
+/public/build-info.json
+/fullstack-dev/public/build-info.json
+
+# ====================================
+# DOCKER
+# ====================================
+.dockerignore
