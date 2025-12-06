@@ -3,28 +3,14 @@
 
 providers = ["node"]
 
-[phases.setup]
-cmds = [
-  "npm cache clean --force || true",
-  "rm -rf ~/.npm || true",
-  "echo 'legacy-peer-deps=true' > .npmrc",
-  "echo 'fund=false' >> .npmrc", 
-  "echo 'audit=false' >> .npmrc",
-  "echo 'registry=https://registry.npmjs.org/' >> .npmrc",
-  "node --version",
-  "npm --version"
-]
-
 [phases.install]
 cmds = [
-  "npm install --legacy-peer-deps --frozen-lockfile --no-audit --no-fund --verbose"
+  "npm ci --legacy-peer-deps --prefer-offline"
 ]
 
 [phases.build]
 cmds = [
   "npx prisma generate",
-  "npx prisma db push --accept-data-loss",
-  "npx prisma db seed",
   "npm run build"
 ]
 
