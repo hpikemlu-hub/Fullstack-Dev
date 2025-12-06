@@ -1,6 +1,8 @@
 # WORKING NIXPACKS - NODE 20 + LEGACY PEER DEPS
-[providers]
-node = "20.11.1"
+providers = ["node"]
+
+[providers.node]
+version = "20.11.1"
 
 [phases.setup]
 cmds = [
