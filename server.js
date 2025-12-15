@@ -12,6 +12,7 @@ const { errorHandler, notFound } = require('./src/middleware/errorHandler');
 const authRoutes = require('./src/routes/auth');
 const userRoutes = require('./src/routes/users');
 const workloadRoutes = require('./src/routes/workload');
+const healthRoutes = require('./src/routes/health');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -49,6 +50,9 @@ app.get('/health', (req, res) => {
         environment: process.env.NODE_ENV
     });
 });
+
+// API Health check endpoint (for Docker)
+app.use('/api/health', healthRoutes);
 
 // Favicon endpoint to prevent 404 errors
 app.get('/favicon.ico', (req, res) => {
