@@ -143,21 +143,41 @@ class User {
     }
 
     static async authenticate(username, password) {
-        const user = await this.findByUsername(username);
-        
-        if (!user) {
+        try {
+            if (!username || !password) {
+                console.error('Authentication error: Username and password are required');
+                return null;
+            }
+
+            console.log(`Attempting to find user with username: ${username}`);
+            const user = await this.findByUsername(username);
+            
+            if (!user) {
+                console.error(`Authentication error: User with username '${username}' not found`);
+                return null;
+            }
+            
+            console.log(`User found, comparing passwords...`);
+            console.log(`Input password length: ${password.length}`);
+            console.log(`Stored password hash: ${user.password.substring(0, 20)}...`);
+            
+            const isMatch = await comparePassword(password, user.password);
+            console.log(`Password comparison result: ${isMatch ? 'Match' : 'No match'}`);
+            
+            if (!isMatch) {
+                console.error(`Authentication error: Invalid password for user '${username}'`);
+                return null;
+            }
+            
+            // Return user without password
+            const { password: _, ...userWithoutPassword } = user;
+            console.log(`User '${username}' authenticated successfully`);
+            return userWithoutPassword;
+        } catch (error) {
+            console.error('Authentication error:', error);
+            console.error('Error stack:', error.stack);
             return null;
         }
-        
-        const isMatch = await comparePassword(password, user.password);
-        
-        if (!isMatch) {
-            return null;
-        }
-        
-        // Return user without password
-        const { password: _, ...userWithoutPassword } = user;
-        return userWithoutPassword;
     }
 
     static async count() {

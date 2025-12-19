@@ -4,6 +4,10 @@ const { validationErrorResponse } = require('../utils/responseUtils');
 const handleValidationErrors = (req, res, next) => {
     const errors = validationResult(req);
     
+    console.log('Validation middleware called');
+    console.log('Request body:', req.body);
+    console.log('Validation errors:', errors.array());
+    
     if (!errors.isEmpty()) {
         const formattedErrors = errors.array().map(error => ({
             field: error.path,
@@ -11,9 +15,11 @@ const handleValidationErrors = (req, res, next) => {
             value: error.value
         }));
         
+        console.log('Validation failed:', formattedErrors);
         return validationErrorResponse(res, formattedErrors);
     }
     
+    console.log('Validation passed');
     next();
 };
 

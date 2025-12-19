@@ -1,6 +1,7 @@
 const { verifyToken } = require('../config/jwt');
 const { unauthorizedResponse, forbiddenResponse } = require('../utils/responseUtils');
 const database = require('../config/database');
+const User = require('../models/User');
 
 const authenticateToken = async (req, res, next) => {
     try {
@@ -14,8 +15,8 @@ const authenticateToken = async (req, res, next) => {
         // Verify the token
         const decoded = verifyToken(token);
         
-        // Get user from database to ensure user still exists
-        const user = await database.get('SELECT id, username, nama, role FROM users WHERE id = ?', [decoded.userId]);
+        // Get user from User model to ensure user still exists
+        const user = await User.findById(decoded.userId);
         
         if (!user) {
             return unauthorizedResponse(res, 'User not found');
@@ -71,7 +72,7 @@ const optionalAuth = async (req, res, next) => {
 
         if (token) {
             const decoded = verifyToken(token);
-            const user = await database.get('SELECT id, username, nama, role FROM users WHERE id = ?', [decoded.userId]);
+            const user = await User.findById(decoded.userId);
             
             if (user) {
                 req.user = user;

@@ -19,9 +19,11 @@ export const AuthProvider = ({ children }) => {
 
   useEffect(() => {
     const initAuth = async () => {
+      console.log('=== AuthContext.initAuth START ===')
       const token = getToken()
       
       if (token) {
+        console.log('Token found during init')
         // Check if token is expired before making request
         if (isTokenExpired(token)) {
           console.log('Token expired during init, removing token')
@@ -54,8 +56,11 @@ export const AuthProvider = ({ children }) => {
           removeToken()
           // Don't redirect to login here, let the user stay on current page
         }
+      } else {
+        console.log('No token found during init')
       }
       setLoading(false)
+      console.log('=== AuthContext.initAuth END ===')
     }
 
     initAuth()
@@ -63,14 +68,16 @@ export const AuthProvider = ({ children }) => {
 
   const login = async (credentials) => {
     try {
-      console.log('AuthContext.login called with:', credentials)
+      console.log('=== AuthContext.login START ===')
+      console.log('Credentials:', credentials)
       const response = await authService.login(credentials)
-      console.log('AuthContext.login response:', response)
+      console.log('AuthContext.login authService response:', response)
       
       // authService now returns the data object directly: { user: {...}, token: "..." }
       if (response.user && response.token) {
+        console.log('=== AuthContext.login SUCCESS ===')
         console.log('Extracted user data:', response.user)
-        console.log('Extracted token:', response.token)
+        console.log('Extracted token:', response.token.substring(0, 20) + '...')
         
         // Store token first to ensure it's available before state update
         setToken(response.token)
@@ -79,12 +86,18 @@ export const AuthProvider = ({ children }) => {
         setUser(response.user)
         
         toast.success('Login successful!')
+        console.log('=== AuthContext.login END ===')
         return { user: response.user, token: response.token }
       } else {
+        console.error('=== AuthContext.login INVALID FORMAT ===')
+        console.error('Response:', response)
         throw new Error('Invalid response format from server - missing user or token')
       }
     } catch (error) {
-      console.error('AuthContext.login error:', error)
+      console.error('=== AuthContext.login ERROR ===')
+      console.error('Error:', error)
+      console.error('Error message:', error.message)
+      console.error('Error response:', error.response)
       toast.error(error.message || 'Login failed')
       throw error
     }

@@ -68,11 +68,17 @@ api.interceptors.request.use(
     }
     
     // Log request for debugging
-    console.log('API Request:', config.method?.toUpperCase(), config.url, config.data)
+    console.log('=== API Request ===')
+    console.log('Method:', config.method?.toUpperCase())
+    console.log('URL:', config.baseURL + config.url)
+    console.log('Headers:', config.headers)
+    console.log('Data:', config.data)
+    console.log('Full config:', config)
     return config
   },
   (error) => {
-    console.error('API Request Error:', error)
+    console.error('=== API Request Error ===')
+    console.error('Error:', error)
     return Promise.reject(error)
   }
 )
@@ -81,16 +87,26 @@ api.interceptors.request.use(
 api.interceptors.response.use(
   (response) => {
     // Log response for debugging
-    console.log('API Response:', response.config.method?.toUpperCase(), response.config.url, response.status, response.data)
+    console.log('=== API Response ===')
+    console.log('Method:', response.config.method?.toUpperCase())
+    console.log('URL:', response.config.url)
+    console.log('Status:', response.status)
+    console.log('Headers:', response.headers)
+    console.log('Data:', response.data)
     return response
   },
   async (error) => {
     const originalRequest = error.config
     
-    console.error('API Response Error:', error)
+    console.error('=== API Response Error ===')
+    console.error('Error:', error)
+    console.error('Error message:', error.message)
     
     if (error.response) {
       const { status, data } = error.response
+      console.error('Error Response Status:', status)
+      console.error('Error Response Data:', data)
+      console.error('Error Response Headers:', error.response.headers)
       
       switch (status) {
         case 401:
@@ -188,11 +204,15 @@ api.interceptors.response.use(
           toast.error(data.message || 'An error occurred.')
       }
     } else if (error.request) {
-      console.error('Network error details:', error.request);
-      console.error('Network error config:', error.config);
+      console.error('=== Network Error ===');
+      console.error('Request details:', error.request);
+      console.error('Config details:', error.config);
+      console.error('Base URL:', api.defaults.baseURL);
       toast.error('Network error. Please check your connection.')
     } else {
-      console.error('Unexpected error:', error.message);
+      console.error('=== Unexpected Error ===');
+      console.error('Error message:', error.message);
+      console.error('Error stack:', error.stack);
       toast.error('An unexpected error occurred.')
     }
     

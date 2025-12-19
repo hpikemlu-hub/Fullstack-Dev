@@ -103,9 +103,12 @@ app.get('/api', (req, res) => {
     });
 });
 
+// 404 handler for API routes
+app.use('/api/*', notFound);
+
 // SPA fallback route - catch all non-API routes and serve index.html
 app.get('*', (req, res, next) => {
-    // Skip if this is an API route
+    // Skip if this is an API route (should be handled by the 404 handler above)
     if (req.path.startsWith('/api/')) {
         return next();
     }
@@ -119,7 +122,7 @@ app.get('*', (req, res, next) => {
     res.sendFile('index.html', { root: 'frontend/dist' });
 });
 
-// 404 handler
+// 404 handler for non-API routes
 app.use(notFound);
 
 // Error handler
