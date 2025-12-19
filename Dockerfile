@@ -32,6 +32,13 @@ RUN npm ci --only=production && npm cache clean --force
 COPY src/ ./src/
 COPY server.js .
 
+# Copy admin reset scripts
+COPY reset_admin_prod.js .
+COPY docker_reset_admin.sh .
+
+# Make the shell script executable
+RUN chmod +x docker_reset_admin.sh
+
 # Copy frontend build files from builder stage
 COPY --from=frontend-builder /app/frontend/dist ./frontend/dist
 
