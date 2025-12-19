@@ -8,14 +8,14 @@ WORKDIR /app
 COPY package*.json ./
 
 # Install backend dependencies
-RUN npm ci --only=production
+RUN npm ci --only=production && npm cache clean --force
 
 # Copy frontend package.json files
 COPY frontend/package*.json ./frontend/
 
 # Install ALL dependencies for frontend (including dev dependencies for build)
 WORKDIR /app/frontend
-RUN npm ci
+RUN npm ci && npm cache clean --force
 
 # Build frontend
 RUN npm run build
