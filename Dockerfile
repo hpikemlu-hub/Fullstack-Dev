@@ -19,11 +19,12 @@ RUN NODE_ENV=production npm run build
 # Production stage
 FROM node:18-alpine
 
-# Install additional tools that are needed for permission handling
+# Install additional tools that are needed for permission handling and MySQL
 RUN apk add --no-cache \
     shadow \
     su-exec \
     curl \
+    mysql-client \
     && rm -rf /var/cache/apk/*
 
 # Set working directory
@@ -65,6 +66,14 @@ RUN mkdir -p /app/data /app/logs /app/uploads /app/temp /app/public/uploads && \
 # Set environment variables
 ENV NODE_ENV=production
 ENV DB_PATH=/app/data/database.sqlite
+ENV DB_TYPE=sqlite
+ENV DB_HOST=localhost
+ENV DB_PORT=3306
+ENV DB_NAME=workload_db
+ENV DB_USER=workload_user
+ENV DB_CONNECTION_LIMIT=20
+ENV DB_CONNECTION_TIMEOUT=60000
+ENV DB_ACQUIRE_TIMEOUT=60000
 ENV PUID=${PUID}
 ENV PGID=${PGID}
 
@@ -78,9 +87,18 @@ USER appuser
 # Expose port
 EXPOSE 3000
 
-# Health check
-HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
-  CMD node -e "require('http').get('http://localhost:3000/health', (res) => { process.exit(res.statusCode === 200 ? 0 : 1) }).on('error', () => process.exit(1))"
+# Health check with MySQL connectivity
+HEALTHCHECK --interval=30s --timeout=10s --start-period=30s --retries=3 \
+  CMD node -e " \
+    const http = require('http'); \
+    http.get('http://localhost:3000/health', (res) => { \
+      if (res.statusCode === 200) { \
+        process.exit(0); \
+      } else { \
+        process.exit(1); \
+      } \
+    }).on('error', () => process.exit(1)); \
+  "
 
 # Volume for data persistence
 VOLUME ["/app/data", "/app/logs", "/app/uploads"]

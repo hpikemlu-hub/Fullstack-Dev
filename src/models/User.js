@@ -60,11 +60,14 @@ class User {
         
         try {
             console.log(`💾 Inserting user ${processedData.username} into database`);
-            const result = await database.run(sql, params);
-            console.log(`✅ User ${processedData.username} created with ID: ${result.id}`);
+            const result = await database.execute(sql, params);
+            
+            // Handle different database response formats
+            const userId = result.insertId || result.id;
+            console.log(`✅ User ${processedData.username} created with ID: ${userId}`);
             
             // Return the created user without password
-            const createdUser = await this.findById(result.id);
+            const createdUser = await this.findById(userId);
             if (createdUser) {
                 console.log(`✅ User ${processedData.username} retrieved from database`);
                 return createdUser;
@@ -120,22 +123,22 @@ class User {
 
     static async findById(id) {
         const sql = 'SELECT id, username, nama, nip, golongan, jabatan, role, created_at FROM users WHERE id = ?';
-        return await database.get(sql, [id]);
+        return await database.getOne(sql, [id]);
     }
 
     static async findByUsername(username) {
         const sql = 'SELECT * FROM users WHERE username = ?';
-        return await database.get(sql, [username]);
+        return await database.getOne(sql, [username]);
     }
 
     static async findAll(limit = 50, offset = 0) {
         const sql = `
-            SELECT id, username, nama, nip, golongan, jabatan, role, created_at 
-            FROM users 
-            ORDER BY created_at DESC 
+            SELECT id, username, nama, nip, golongan, jabatan, role, created_at
+            FROM users
+            ORDER BY created_at DESC
             LIMIT ? OFFSET ?
         `;
-        return await database.all(sql, [limit, offset]);
+        return await database.query(sql, [limit, offset]);
     }
 
     static async update(id, userData) {
@@ -185,13 +188,17 @@ class User {
             return await this.findById(id);
         }
         
-        updateFields.push('updated_at = CURRENT_TIMESTAMP');
+        // Only add updated_at for MySQL (SQLite doesn't have this column in users table)
+        if (database.isMySQL()) {
+            updateFields.push('updated_at = CURRENT_TIMESTAMP');
+        }
+        
         updateValues.push(id);
         
         const sql = `UPDATE users SET ${updateFields.join(', ')} WHERE id = ?`;
         
         try {
-            await database.run(sql, updateValues);
+            await database.execute(sql, updateValues);
             return await this.findById(id);
         } catch (error) {
             throw error;
@@ -201,7 +208,7 @@ class User {
     static async delete(id, force = false) {
         // Check if user has workloads (unless force delete)
         if (!force) {
-            const workloadCount = await database.get('SELECT COUNT(*) as count FROM workloads WHERE user_id = ?', [id]);
+            const workloadCount = await database.getOne('SELECT COUNT(*) as count FROM workloads WHERE user_id = ?', [id]);
             
             if (workloadCount.count > 0) {
                 throw new Error('Cannot delete user with existing workloads');
@@ -209,8 +216,10 @@ class User {
         }
         
         const sql = 'DELETE FROM users WHERE id = ?';
-        const result = await database.run(sql, [id]);
-        return result.changes > 0;
+        const result = await database.execute(sql, [id]);
+        
+        // Handle different database response formats
+        return (result.affectedRows || result.changes) > 0;
     }
 
     static async authenticate(username, password) {
@@ -253,7 +262,7 @@ class User {
 
     static async count() {
         const sql = 'SELECT COUNT(*) as total FROM users';
-        const result = await database.get(sql);
+        const result = await database.getOne(sql);
         return result.total;
     }
 }

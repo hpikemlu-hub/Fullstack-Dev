@@ -10,8 +10,11 @@ class Workload {
         `;
         
         try {
-            const result = await database.run(sql, [user_id, nama, type, deskripsi, status, tgl_diterima, fungsi]);
-            return await this.findById(result.id);
+            const result = await database.execute(sql, [user_id, nama, type, deskripsi, status, tgl_diterima, fungsi]);
+            
+            // Handle different database response formats
+            const workloadId = result.insertId || result.id;
+            return await this.findById(workloadId);
         } catch (error) {
             throw error;
         }
@@ -24,7 +27,7 @@ class Workload {
             LEFT JOIN users u ON w.user_id = u.id
             WHERE w.id = ?
         `;
-        return await database.get(sql, [id]);
+        return await database.getOne(sql, [id]);
     }
 
     static async findAll(limit = 50, offset = 0, filters = {}) {
@@ -63,7 +66,7 @@ class Workload {
         sql += ' ORDER BY w.created_at DESC LIMIT ? OFFSET ?';
         params.push(limit, offset);
         
-        return await database.all(sql, params);
+        return await database.query(sql, params);
     }
 
     static async findByUserId(userId, limit = 50, offset = 0) {
@@ -75,7 +78,7 @@ class Workload {
             ORDER BY w.created_at DESC
             LIMIT ? OFFSET ?
         `;
-        return await database.all(sql, [userId, limit, offset]);
+        return await database.query(sql, [userId, limit, offset]);
     }
 
     static async update(id, workloadData) {
@@ -124,13 +127,17 @@ class Workload {
             return await this.findById(id);
         }
         
-        updateFields.push('updated_at = CURRENT_TIMESTAMP');
+        // Only add updated_at for MySQL (SQLite has this as a column)
+        if (database.isMySQL()) {
+            updateFields.push('updated_at = CURRENT_TIMESTAMP');
+        }
+        
         updateValues.push(id);
         
         const sql = `UPDATE workloads SET ${updateFields.join(', ')} WHERE id = ?`;
         
         try {
-            await database.run(sql, updateValues);
+            await database.execute(sql, updateValues);
             return await this.findById(id);
         } catch (error) {
             throw error;
@@ -139,8 +146,10 @@ class Workload {
 
     static async delete(id) {
         const sql = 'DELETE FROM workloads WHERE id = ?';
-        const result = await database.run(sql, [id]);
-        return result.changes > 0;
+        const result = await database.execute(sql, [id]);
+        
+        // Handle different database response formats
+        return (result.affectedRows || result.changes) > 0;
     }
 
     static async getWorkloadOptions() {
@@ -150,7 +159,7 @@ class Workload {
             WHERE type IS NOT NULL OR status IS NOT NULL OR fungsi IS NOT NULL
         `;
         
-        const results = await database.all(sql);
+        const results = await database.query(sql);
         
         // Group and extract unique values
         const options = {
@@ -164,7 +173,7 @@ class Workload {
 
     static async getStatistics(userId = null) {
         let sql = `
-            SELECT 
+            SELECT
                 status,
                 COUNT(*) as count,
                 COUNT(CASE WHEN status = 'Completed' THEN 1 END) as completed,
@@ -180,7 +189,7 @@ class Workload {
             params.push(userId);
         }
         
-        const results = await database.all(sql, params);
+        const results = await database.query(sql, params);
         
         // Get total count
         let countSql = 'SELECT COUNT(*) as total FROM workloads';
@@ -191,7 +200,7 @@ class Workload {
             countParams.push(userId);
         }
         
-        const totalResult = await database.get(countSql, countParams);
+        const totalResult = await database.getOne(countSql, countParams);
         
         return {
             total: totalResult.total,
@@ -218,7 +227,7 @@ class Workload {
             params.push(filters.type);
         }
         
-        const result = await database.get(sql, params);
+        const result = await database.getOne(sql, params);
         return result.total;
     }
 }

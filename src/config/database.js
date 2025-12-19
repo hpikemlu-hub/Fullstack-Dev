@@ -1,263 +1,166 @@
-const sqlite3 = require('sqlite3').verbose();
-const path = require('path');
 const fs = require('fs');
 
-class Database {
-    constructor() {
-        this.db = null;
-        // dbPath will be determined dynamically in connect() method
-    }
+// Determine which database to use based on environment
+const dbType = process.env.DB_TYPE || 'sqlite';
 
-    ensureDatabaseDirectory() {
-        const dbDir = path.dirname(this.dbPath);
-        if (!fs.existsSync(dbDir)) {
-            try {
-                fs.mkdirSync(dbDir, { recursive: true, mode: 0o755 });
-                console.log(`✅ Created database directory: ${dbDir}`);
-                
-                // Verify directory is writable
-                try {
-                    const testFile = path.join(dbDir, '.write_test');
-                    fs.writeFileSync(testFile, 'test');
-                    fs.unlinkSync(testFile);
-                    console.log(`✅ Database directory is writable: ${dbDir}`);
-                } catch (writeError) {
-                    console.error(`❌ Database directory is not writable: ${dbDir}`, writeError.message);
-                    throw new Error(`Database directory is not writable: ${dbDir}`);
-                }
-            } catch (error) {
-                console.error(`❌ Failed to create database directory ${dbDir}:`, error.message);
-                throw new Error(`Failed to create database directory: ${dbDir}`);
-            }
-        } else {
-            // Verify existing directory is writable
-            try {
-                const testFile = path.join(dbDir, '.write_test');
-                fs.writeFileSync(testFile, 'test');
-                fs.unlinkSync(testFile);
-                console.log(`✅ Database directory exists and is writable: ${dbDir}`);
-            } catch (writeError) {
-                console.error(`❌ Database directory exists but is not writable: ${dbDir}`, writeError.message);
-                throw new Error(`Database directory exists but is not writable: ${dbDir}`);
-            }
-        }
-    }
+let database;
 
-    connect() {
-        return new Promise((resolve, reject) => {
-            // Dynamically determine database path on each connection
-            const defaultPath = process.env.NODE_ENV === 'production' ? '/app/data/database.sqlite' : './database.sqlite';
-            this.dbPath = process.env.DB_PATH || defaultPath;
-            
-            console.log(`📁 Database path: ${this.dbPath}`);
-            
-            // Ensure database directory exists
-            this.ensureDatabaseDirectory();
-            
-            // Check if database file exists
-            const dbExists = fs.existsSync(this.dbPath);
-            if (!dbExists) {
-                console.log(`📝 Database file does not exist, will be created: ${this.dbPath}`);
-            } else {
-                console.log(`📝 Database file exists: ${this.dbPath}`);
-                
-                // Check if database file is writable
-                try {
-                    fs.accessSync(this.dbPath, fs.constants.W_OK);
-                    console.log(`✅ Database file is writable: ${this.dbPath}`);
-                } catch (accessError) {
-                    console.error(`❌ Database file is not writable: ${this.dbPath}`, accessError.message);
-                    throw new Error(`Database file is not writable: ${this.dbPath}`);
-                }
-            }
-            
-            this.db = new sqlite3.Database(this.dbPath, (err) => {
-                if (err) {
-                    console.error('❌ Error opening database:', err.message);
-                    console.error('Database path:', this.dbPath);
-                    reject(err);
-                } else {
-                    console.log('✅ Connected to SQLite database.');
-                    // Enable foreign keys
-                    this.db.run('PRAGMA foreign_keys = ON');
-                    
-                    // Set busy timeout for better concurrency handling
-                    this.db.run('PRAGMA busy_timeout = 30000');
-                    
-                    resolve(this.db);
-                }
-            });
-        });
-    }
+console.log(`🔧 Database configuration: DB_TYPE=${dbType}`);
 
-    async initialize() {
-        try {
-            await this.connect();
-            console.log(`✅ Database connected at: ${this.dbPath}`);
-            
-            // Create tables
-            await this.createTables();
-            console.log('✅ Database tables created/verified successfully');
-            
-            // Run database integrity check
-            await this.runIntegrityCheck();
-            console.log('✅ Database integrity check passed');
-            
-            console.log('✅ Database initialization completed successfully');
-        } catch (error) {
-            console.error('❌ Database initialization failed:', error.message);
-            console.error('Database path:', this.dbPath);
-            throw error;
-        }
-    }
+// Validate required environment variables for MySQL
+if (dbType === 'mysql') {
+    const requiredEnvVars = ['DB_HOST', 'DB_USER', 'DB_PASSWORD', 'DB_NAME'];
+    const missingVars = requiredEnvVars.filter(varName => !process.env[varName]);
     
-    async runIntegrityCheck() {
-        return new Promise((resolve, reject) => {
-            this.db.get('PRAGMA integrity_check', (err, row) => {
-                if (err) {
-                    reject(err);
-                } else {
-                    const result = row.integrity_check;
-                    if (result === 'ok') {
-                        resolve(true);
-                    } else {
-                        console.warn('Database integrity check result:', result);
-                        resolve(false);
-                    }
-                }
-            });
+    if (missingVars.length > 0) {
+        console.error('❌ Missing required MySQL environment variables:', missingVars.join(', '));
+        console.error('Please set the following environment variables for MySQL:');
+        missingVars.forEach(varName => {
+            console.error(`  - ${varName}`);
         });
-    }
-
-    async verifyConnection() {
-        if (!this.db) {
-            throw new Error('Database not initialized');
-        }
+        console.error('Falling back to SQLite...');
         
-        return new Promise((resolve, reject) => {
-            this.db.get('SELECT 1', (err) => {
-                if (err) {
-                    reject(err);
-                } else {
-                    resolve(true);
-                }
-            });
-        });
+        // Fallback to SQLite if MySQL config is incomplete
+        process.env.DB_TYPE = 'sqlite';
+        database = require('./database-sqlite');
+    } else {
+        console.log('🐬 Using MySQL database');
+        console.log(`📍 Host: ${process.env.DB_HOST}:${process.env.DB_PORT || 3306}`);
+        console.log(`🗄️  Database: ${process.env.DB_NAME}`);
+        console.log(`👤 User: ${process.env.DB_USER}`);
+        
+        try {
+            database = require('./database-mysql');
+        } catch (error) {
+            console.error('❌ Failed to load MySQL database module:', error.message);
+            console.error('Falling back to SQLite...');
+            process.env.DB_TYPE = 'sqlite';
+            database = require('./database-sqlite');
+        }
     }
-
-    createTables() {
-        return new Promise((resolve, reject) => {
-            // Create users table
-            const createUsersTable = `
-                CREATE TABLE IF NOT EXISTS users (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    username VARCHAR(50) UNIQUE NOT NULL,
-                    password VARCHAR(255) NOT NULL,
-                    nama VARCHAR(100) NOT NULL,
-                    nip VARCHAR(20),
-                    golongan VARCHAR(20),
-                    jabatan VARCHAR(100),
-                    role VARCHAR(20) DEFAULT 'User',
-                    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-                )
-            `;
-
-            // Create workloads table
-            const createWorkloadsTable = `
-                CREATE TABLE IF NOT EXISTS workloads (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    user_id INTEGER,
-                    nama VARCHAR(100) NOT NULL,
-                    type VARCHAR(50),
-                    deskripsi TEXT,
-                    status VARCHAR(50) DEFAULT 'New',
-                    tgl_diterima DATE,
-                    fungsi VARCHAR(100),
-                    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-                    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-                    FOREIGN KEY (user_id) REFERENCES users (id)
-                )
-            `;
-
-            this.db.serialize(() => {
-                this.db.run(createUsersTable, (err) => {
-                    if (err) {
-                        console.error('❌ Error creating users table:', err.message);
-                        reject(err);
-                    } else {
-                        console.log('✅ Users table created/verified successfully');
-                    }
-                });
-
-                this.db.run(createWorkloadsTable, (err) => {
-                    if (err) {
-                        console.error('❌ Error creating workloads table:', err.message);
-                        reject(err);
-                    } else {
-                        console.log('✅ Workloads table created/verified successfully');
-                        console.log('✅ All database tables created/verified successfully');
-                        resolve();
-                    }
-                });
-            });
-        });
-    }
-
-    close() {
-        return new Promise((resolve, reject) => {
-            if (this.db) {
-                this.db.close((err) => {
-                    if (err) {
-                        reject(err);
-                    } else {
-                        console.log('Database connection closed.');
-                        resolve();
-                    }
-                });
-            } else {
-                resolve();
-            }
-        });
-    }
-
-    // Helper method to run queries with promises
-    run(sql, params = []) {
-        return new Promise((resolve, reject) => {
-            this.db.run(sql, params, function(err) {
-                if (err) {
-                    reject(err);
-                } else {
-                    resolve({ id: this.lastID, changes: this.changes });
-                }
-            });
-        });
-    }
-
-    // Helper method to get single row
-    get(sql, params = []) {
-        return new Promise((resolve, reject) => {
-            this.db.get(sql, params, (err, row) => {
-                if (err) {
-                    reject(err);
-                } else {
-                    resolve(row);
-                }
-            });
-        });
-    }
-
-    // Helper method to get multiple rows
-    all(sql, params = []) {
-        return new Promise((resolve, reject) => {
-            this.db.all(sql, params, (err, rows) => {
-                if (err) {
-                    reject(err);
-                } else {
-                    resolve(rows);
-                }
-            });
-        });
+} else {
+    console.log('🗄️  Using SQLite database');
+    try {
+        database = require('./database-sqlite');
+    } catch (error) {
+        console.error('❌ Failed to load SQLite database module:', error.message);
+        throw new Error('Failed to initialize any database module');
     }
 }
 
-module.exports = new Database();
+// Add database type information to the exported object
+database.getType = () => dbType;
+database.isMySQL = () => dbType === 'mysql';
+database.isSQLite = () => dbType === 'sqlite';
+
+// Enhanced initialization with fallback support
+const originalInitialize = database.initialize;
+database.initialize = async function() {
+    try {
+        console.log(`🚀 Initializing ${dbType.toUpperCase()} database...`);
+        await originalInitialize.call(this);
+        console.log(`✅ ${dbType.toUpperCase()} database initialized successfully`);
+    } catch (error) {
+        console.error(`❌ Failed to initialize ${dbType.toUpperCase()} database:`, error.message);
+        
+        // If MySQL fails and we haven't already tried SQLite, attempt fallback
+        if (dbType === 'mysql' && process.env.DB_FALLBACK_TO_SQLITE !== 'false') {
+            console.log('🔄 Attempting fallback to SQLite...');
+            try {
+                const sqliteDB = require('./database-sqlite');
+                await sqliteDB.initialize();
+                console.log('✅ Fallback to SQLite successful');
+                
+                // Replace current database instance with SQLite
+                Object.assign(this, sqliteDB);
+                this.getType = () => 'sqlite';
+                this.isMySQL = () => false;
+                this.isSQLite = () => true;
+                
+                return;
+            } catch (fallbackError) {
+                console.error('❌ SQLite fallback also failed:', fallbackError.message);
+            }
+        }
+        
+        // If we get here, both primary and fallback failed
+        throw new Error(`Database initialization failed: ${error.message}`);
+    }
+};
+
+// Enhanced connection verification with retry logic
+const originalVerifyConnection = database.verifyConnection;
+database.verifyConnection = async function(maxRetries = 3) {
+    let retryCount = 0;
+    
+    while (retryCount < maxRetries) {
+        try {
+            await originalVerifyConnection.call(this);
+            console.log(`✅ Database connection verified (${dbType})`);
+            return true;
+        } catch (error) {
+            retryCount++;
+            console.error(`❌ Connection verification attempt ${retryCount} failed:`, error.message);
+            
+            if (retryCount >= maxRetries) {
+                // If MySQL fails and fallback is enabled, try SQLite
+                if (dbType === 'mysql' && process.env.DB_FALLBACK_TO_SQLITE !== 'false') {
+                    console.log('🔄 Attempting SQLite fallback for connection verification...');
+                    try {
+                        const sqliteDB = require('./database-sqlite');
+                        await sqliteDB.verifyConnection();
+                        console.log('✅ SQLite fallback connection successful');
+                        return true;
+                    } catch (fallbackError) {
+                        console.error('❌ SQLite fallback connection also failed:', fallbackError.message);
+                    }
+                }
+                
+                throw new Error(`Database connection verification failed after ${maxRetries} attempts: ${error.message}`);
+            }
+            
+            // Wait before retrying
+            const delay = Math.min(1000 * Math.pow(2, retryCount), 5000); // Exponential backoff, max 5 seconds
+            console.log(`⏳ Retrying connection verification in ${delay}ms...`);
+            await new Promise(resolve => setTimeout(resolve, delay));
+        }
+    }
+};
+
+// Add health check method
+database.healthCheck = async function() {
+    try {
+        const isConnected = await this.verifyConnection();
+        const type = this.getType();
+        
+        return {
+            status: 'healthy',
+            database: type,
+            connected: isConnected,
+            timestamp: new Date().toISOString()
+        };
+    } catch (error) {
+        return {
+            status: 'unhealthy',
+            database: this.getType(),
+            connected: false,
+            error: error.message,
+            timestamp: new Date().toISOString()
+        };
+    }
+};
+
+// Add graceful shutdown method
+const originalClose = database.close;
+database.close = async function() {
+    try {
+        console.log(`🔄 Closing ${this.getType()} database connection...`);
+        await originalClose.call(this);
+        console.log(`✅ ${this.getType()} database connection closed successfully`);
+    } catch (error) {
+        console.error(`❌ Error closing ${this.getType()} database connection:`, error.message);
+        throw error;
+    }
+};
+
+module.exports = database;

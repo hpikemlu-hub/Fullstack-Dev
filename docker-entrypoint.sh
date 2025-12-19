@@ -212,14 +212,140 @@ else
     fi
 fi
 
+# Wait for MySQL service if using MySQL
+wait_for_mysql() {
+    if [ "${DB_TYPE}" = "mysql" ]; then
+        log "🐬 Waiting for MySQL service to be ready..."
+        
+        local mysql_host=${DB_HOST:-localhost}
+        local mysql_port=${DB_PORT:-3306}
+        local max_attempts=30
+        local attempt=1
+        
+        while [ $attempt -le $max_attempts ]; do
+            log "🔍 Attempting to connect to MySQL at ${mysql_host}:${mysql_port} (attempt ${attempt}/${max_attempts})"
+            
+            # Try to connect to MySQL
+            if command -v mysql >/dev/null 2>&1; then
+                if mysql -h"${mysql_host}" -P"${mysql_port}" -u"${DB_USER}" -p"${DB_PASSWORD}" -e "SELECT 1" >/dev/null 2>&1; then
+                    log "✅ MySQL service is ready!"
+                    return 0
+                fi
+            else
+                # Fallback to nc (netcat) if mysql client is not available
+                if nc -z "${mysql_host}" "${mysql_port}" 2>/dev/null; then
+                    log "✅ MySQL port is accessible!"
+                    return 0
+                fi
+            fi
+            
+            log "⏳ MySQL not ready, waiting 5 seconds..."
+            sleep 5
+            attempt=$((attempt + 1))
+        done
+        
+        log "❌ Error: MySQL service did not become ready after ${max_attempts} attempts"
+        
+        # Fallback to SQLite if MySQL is not available and fallback is enabled
+        if [ "${MYSQL_FALLBACK_TO_SQLITE}" = "true" ]; then
+            log "🔄 Falling back to SQLite database..."
+            export DB_TYPE="sqlite"
+            log "📊 Database type changed to: ${DB_TYPE}"
+        else
+            log "❌ Error: MySQL service is not available and fallback is disabled"
+            exit 1
+        fi
+    else
+        log "🗄️ Using SQLite database, no need to wait for MySQL"
+    fi
+}
+
+# Run database migration if requested
+run_database_migration() {
+    if [ "${MIGRATE_TO_MYSQL}" = "true" ] && [ "${DB_TYPE}" = "mysql" ]; then
+        log "🔄 Running SQLite to MySQL migration..."
+        
+        # Check if migration script exists
+        if [ -f "/app/scripts/migrate-to-mysql.js" ]; then
+            node /app/scripts/migrate-to-mysql.js
+            if [ $? -eq 0 ]; then
+                log "✅ Database migration completed successfully"
+            else
+                log "❌ Error: Database migration failed"
+                exit 1
+            fi
+        else
+            log "⚠️ Warning: Migration script not found at /app/scripts/migrate-to-mysql.js"
+        fi
+    fi
+}
+
+# Verify database connection
+verify_database_connection() {
+    log "🔍 Verifying database connection..."
+    
+    if [ "${DB_TYPE}" = "mysql" ]; then
+        # Test MySQL connection
+        if command -v mysql >/dev/null 2>&1; then
+            if mysql -h"${DB_HOST}" -P"${DB_PORT}" -u"${DB_USER}" -p"${DB_PASSWORD}" -e "SELECT 1" "${DB_NAME}" >/dev/null 2>&1; then
+                log "✅ MySQL connection verified successfully"
+            else
+                log "❌ Error: MySQL connection verification failed"
+                exit 1
+            fi
+        else
+            log "⚠️ Warning: MySQL client not available, skipping connection verification"
+        fi
+    else
+        # Test SQLite connection
+        if [ -f "${DB_PATH}" ] || [ -d "$(dirname "${DB_PATH}")" ]; then
+            log "✅ SQLite database path accessible: ${DB_PATH}"
+        else
+            log "❌ Error: SQLite database path not accessible: ${DB_PATH}"
+            exit 1
+        fi
+    fi
+}
+
 # Display environment information
 log "🔧 Environment Information:"
 log "   NODE_ENV: ${NODE_ENV:-development}"
+log "   DB_TYPE: ${DB_TYPE:-sqlite}"
 log "   DB_PATH: ${DB_PATH:-/app/data/database.sqlite}"
+log "   DB_HOST: ${DB_HOST:-not set}"
+log "   DB_PORT: ${DB_PORT:-not set}"
+log "   DB_NAME: ${DB_NAME:-not set}"
 log "   User ID: $(id -u)"
 log "   Group ID: $(id -g)"
 log "   PUID: ${PUID:-not set}"
 log "   PGID: ${PGID:-not set}"
+
+# Check if admin reset is requested
+if [ "$RESET_ADMIN" = "true" ]; then
+    log "🔐 Admin reset requested, running reset script..."
+    node reset_admin_prod.js
+fi
+
+# Run migrations if requested
+if [ "$RUN_MIGRATIONS" = "true" ]; then
+    log "🔄 Running database migrations..."
+    npm run migrate 2>/dev/null || log "Migration failed or not available"
+fi
+
+# Run seed data if requested
+if [ "$RUN_SEED" = "true" ]; then
+    log "🌱 Running database seeding..."
+    npm run seed 2>/dev/null || log "Seeding failed or not available"
+fi
+
+# Wait for MySQL service if needed
+wait_for_mysql
+
+# Verify database connection
+verify_database_connection
+
+# Run database migration if requested
+run_database_migration
 
 # Check if admin reset is requested
 if [ "$RESET_ADMIN" = "true" ]; then

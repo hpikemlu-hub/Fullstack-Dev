@@ -1,0 +1,107 @@
+version: '3.8'
+
+services:
+  # MySQL Service
+  mysql:
+    image: mysql:8.0
+    container_name: workload-mysql
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: root_password_change_in_production
+      MYSQL_DATABASE: workload_db
+      MYSQL_USER: workload_user
+      MYSQL_PASSWORD: workload_password_change_in_production
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+      - ./scripts/init-mysql.sql:/docker-entrypoint-initdb.d/init-mysql.sql:ro
+    networks:
+      - workload-network
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+  # Application Service
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        PUID: 1000
+        PGID: 1000
+    container_name: workload-app
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      NODE_ENV: development
+      DB_TYPE: mysql
+      DB_HOST: mysql
+      DB_PORT: 3306
+      DB_NAME: workload_db
+      DB_USER: workload_user
+      DB_PASSWORD: workload_password_change_in_production
+      DB_CONNECTION_LIMIT: 20
+      DB_CONNECTION_TIMEOUT: 60000
+      DB_ACQUIRE_TIMEOUT: 60000
+      JWT_SECRET: dev-jwt-secret-change-in-production-min-32-chars
+      CORS_ORIGIN: http://localhost:3000
+      PUID: 1000
+      PGID: 1000
+      # Migration control
+      MIGRATE_TO_MYSQL: false
+      RUN_MIGRATIONS: false
+      RUN_SEED: false
+    volumes:
+      - app_data:/app/data
+      - app_logs:/app/logs
+      - app_uploads:/app/uploads
+      - ./src:/app/src:ro
+      - ./server.js:/app/server.js:ro
+    networks:
+      - workload-network
+    depends_on:
+      mysql:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "node", "-e", "require('http').get('http://localhost:3000/health', (res) => { process.exit(res.statusCode === 200 ? 0 : 1) }).on('error', () => process.exit(1))"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+
+  # MySQL Admin Service (Optional)
+  mysql-admin:
+    image: phpmyadmin/phpmyadmin:latest
+    container_name: workload-phpmyadmin
+    restart: unless-stopped
+    ports:
+      - "8080:80"
+    environment:
+      PMA_HOST: mysql
+      PMA_USER: workload_user
+      PMA_PASSWORD: workload_password_change_in_production
+    networks:
+      - workload-network
+    depends_on:
+      - mysql
+    profiles:
+      - admin
+
+volumes:
+  mysql_data:
+    driver: local
+  app_data:
+    driver: local
+  app_logs:
+    driver: local
+  app_uploads:
+    driver: local
+
+networks:
+  workload-network:
+    driver: bridge
