@@ -1,74 +1,246 @@
-#!/bin/sh
+#!/bin/bash
 
-# Docker entrypoint script for Workload Management App
-# Ensures proper database directory setup and permissions
+# Enhanced Docker entrypoint script for Workload Management App
+# Handles permission issues for volume mounting in Dokploy
 
 set -e
 
-echo "🐳 Starting Docker container setup..."
+# Fungsi untuk log dengan timestamp
+log() {
+    echo "[$(date +'%Y-%m-%d %H:%M:%S')] $1"
+}
+
+# Fungsi untuk cek dan fix permission
+fix_permissions() {
+    local dir=$1
+    local user_id=${2:-1000}
+    local group_id=${3:-1000}
+    
+    log "Checking directory: $dir"
+    
+    # Cek apakah direktori ada
+    if [ ! -d "$dir" ]; then
+        log "Directory $dir does not exist. Creating..."
+        mkdir -p "$dir"
+    fi
+    
+    # Cek ownership
+    local current_uid=$(stat -c "%u" "$dir")
+    local current_gid=$(stat -c "%g" "$dir")
+    
+    if [ "$current_uid" != "$user_id" ] || [ "$current_gid" != "$group_id" ]; then
+        log "Fixing ownership for $dir (current: $current_uid:$current_gid, target: $user_id:$group_id)"
+        
+        # Coba fix ownership
+        if chown "$user_id:$group_id" "$dir" 2>/dev/null; then
+            log "Successfully changed ownership of $dir"
+        else
+            log "Warning: Could not change ownership of $dir. This might be expected in some environments."
+            
+            # Jika tidak bisa change ownership, coba set permission yang memungkinkan akses
+            log "Setting permissive permissions instead..."
+            chmod 777 "$dir" 2>/dev/null || log "Could not set permissions on $dir"
+        fi
+    fi
+    
+    # Set permission
+    chmod 755 "$dir" 2>/dev/null || log "Could not set permissions on $dir"
+    
+    # Rekursif untuk subdirektori (dengan batasan depth untuk menghindari performance issues)
+    find "$dir" -type d -maxdepth 2 -exec chmod 755 {} \; 2>/dev/null
+    find "$dir" -type f -maxdepth 2 -exec chmod 644 {} \; 2>/dev/null
+}
+
+# Fungsi untuk cek dan fix permission untuk semua volume yang dibutuhkan
+setup_volume_permissions() {
+    log "Setting up volume permissions..."
+    
+    # Daftar direktori yang perlu diperiksa
+    local directories=(
+        "/app/uploads"
+        "/app/logs"
+        "/app/data"
+        "/app/temp"
+        "/app/public/uploads"
+    )
+    
+    # User dan group ID (bisa dioverride dengan environment variables)
+    local user_id=${PUID:-1000}
+    local group_id=${PGID:-1000}
+    
+    log "Using UID: $user_id, GID: $group_id"
+    
+    # Cek dan fix permission untuk setiap direktori
+    for dir in "${directories[@]}"; do
+        fix_permissions "$dir" "$user_id" "$group_id"
+    done
+    
+    # Special handling untuk database directory
+    if [ -d "/app/data" ]; then
+        log "Setting up database directory permissions..."
+        find /app/data -type f -name "*.db" -exec chmod 664 {} \; 2>/dev/null
+        find /app/data -type f -name "*.sqlite*" -exec chmod 664 {} \; 2>/dev/null
+    fi
+}
+
+# Fungsi untuk cek apakah kita berjalan sebagai root
+check_user() {
+    local current_uid=$(id -u)
+    log "Current user ID: $current_uid"
+    
+    if [ "$current_uid" = "0" ]; then
+        log "Running as root. This might cause permission issues with mounted volumes."
+        
+        # Jika running sebagai root, kita bisa fix permission
+        setup_volume_permissions
+        
+        # Jika PUID dan PGID diset, switch ke user tersebut
+        if [ -n "$PUID" ] && [ -n "$PGID" ]; then
+            log "Switching to user $PUID:$PGID"
+            
+            # Buat user jika belum ada
+            if ! id "$PUID" &>/dev/null; then
+                groupadd -g "$PGID" appuser 2>/dev/null || log "Could not create group"
+                useradd -u "$PUID" -g "$PGID" -d /app -s /bin/bash appuser 2>/dev/null || log "Could not create user"
+            fi
+            
+            # Set ownership aplikasi directory
+            chown -R "$PUID:$PGID" /app 2>/dev/null || log "Could not change ownership of /app"
+            
+            # Switch ke user tersebut untuk menjalankan aplikasi
+            exec gosu "$PUID:$PGID" "$@"
+        fi
+    else
+        log "Running as non-root user. Checking if we have necessary permissions..."
+        
+        # Cek apakah kita bisa menulis ke direktori yang dibutuhkan
+        local writable_dirs=0
+        local total_dirs=0
+        
+        for dir in "/app/uploads" "/app/logs" "/app/data"; do
+            if [ -d "$dir" ]; then
+                total_dirs=$((total_dirs + 1))
+                if [ -w "$dir" ]; then
+                    writable_dirs=$((writable_dirs + 1))
+                else
+                    log "Warning: Cannot write to $dir"
+                fi
+            fi
+        done
+        
+        if [ "$writable_dirs" -lt "$total_dirs" ]; then
+            log "Warning: Some directories are not writable. This might cause issues."
+            log "Consider running the container with proper volume permissions or as root with PUID/PGID set."
+        fi
+    fi
+}
+
+# Main execution
+log "🐳 Starting Docker container setup with Enhanced Permission Handling..."
+
+# Cek user dan setup permission
+check_user
 
 # Ensure database directory exists and has proper permissions
 if [ ! -d "/app/data" ]; then
-    echo "📁 Creating database directory: /app/data"
+    log "📁 Creating database directory: /app/data"
     mkdir -p /app/data
 fi
 
 # Ensure logs directory exists
 if [ ! -d "/app/logs" ]; then
-    echo "📁 Creating logs directory: /app/logs"
+    log "📁 Creating logs directory: /app/logs"
     mkdir -p /app/logs
 fi
 
+# Ensure uploads directory exists
+if [ ! -d "/app/uploads" ]; then
+    log "📁 Creating uploads directory: /app/uploads"
+    mkdir -p /app/uploads
+fi
+
 # Set proper permissions
-echo "🔧 Setting directory permissions..."
-chmod 755 /app/data
-chmod 755 /app/logs
+log "🔧 Setting directory permissions..."
+chmod 755 /app/data 2>/dev/null || log "Could not set permissions on /app/data"
+chmod 755 /app/logs 2>/dev/null || log "Could not set permissions on /app/logs"
+chmod 755 /app/uploads 2>/dev/null || log "Could not set permissions on /app/uploads"
 
 # Check if we can write to the data directory
 if [ ! -w "/app/data" ]; then
-    echo "❌ Error: /app/data directory is not writable"
-    exit 1
+    log "❌ Error: /app/data directory is not writable"
+    log "Attempting to fix permissions..."
+    chmod 777 /app/data 2>/dev/null || log "Could not fix permissions on /app/data"
+    
+    if [ ! -w "/app/data" ]; then
+        log "❌ Error: Still cannot write to /app/data directory after attempting to fix permissions"
+        exit 1
+    fi
 fi
 
 # Check if database file exists
 if [ -f "/app/data/database.sqlite" ]; then
-    echo "📝 Database file exists: /app/data/database.sqlite"
+    log "📝 Database file exists: /app/data/database.sqlite"
     
     # Check if database file is writable
     if [ ! -w "/app/data/database.sqlite" ]; then
-        echo "🔧 Fixing database file permissions..."
-        chmod 664 /app/data/database.sqlite
+        log "🔧 Fixing database file permissions..."
+        chmod 664 /app/data/database.sqlite 2>/dev/null || log "Could not fix database file permissions"
     fi
 else
-    echo "📝 Database file does not exist, will be created on startup"
+    log "📝 Database file does not exist, will be created on startup"
 fi
 
 # Create a test file to verify write permissions
 TEST_FILE="/app/data/.write_test_$$"
-echo "test" > "$TEST_FILE"
+echo "test" > "$TEST_FILE" 2>/dev/null
 if [ $? -eq 0 ]; then
-    echo "✅ Database directory is writable"
+    log "✅ Database directory is writable"
     rm -f "$TEST_FILE"
 else
-    echo "❌ Error: Cannot write to database directory"
-    exit 1
+    log "❌ Error: Cannot write to database directory"
+    log "Attempting to fix permissions..."
+    chmod 777 /app/data 2>/dev/null || log "Could not fix permissions on /app/data"
+    
+    # Try again
+    echo "test" > "$TEST_FILE" 2>/dev/null
+    if [ $? -eq 0 ]; then
+        log "✅ Database directory is now writable after fixing permissions"
+        rm -f "$TEST_FILE"
+    else
+        log "❌ Error: Still cannot write to database directory after attempting to fix permissions"
+        exit 1
+    fi
 fi
 
 # Display environment information
-echo "🔧 Environment Information:"
-echo "   NODE_ENV: ${NODE_ENV:-development}"
-echo "   DB_PATH: ${DB_PATH:-/app/data/database.sqlite}"
-echo "   User ID: $(id -u)"
-echo "   Group ID: $(id -g)"
+log "🔧 Environment Information:"
+log "   NODE_ENV: ${NODE_ENV:-development}"
+log "   DB_PATH: ${DB_PATH:-/app/data/database.sqlite}"
+log "   User ID: $(id -u)"
+log "   Group ID: $(id -g)"
+log "   PUID: ${PUID:-not set}"
+log "   PGID: ${PGID:-not set}"
 
 # Check if admin reset is requested
 if [ "$RESET_ADMIN" = "true" ]; then
-    echo "🔐 Admin reset requested, running reset script..."
+    log "🔐 Admin reset requested, running reset script..."
     node reset_admin_prod.js
 fi
 
-echo "✅ Docker container setup complete"
-echo "🚀 Starting application..."
+# Run migrations if requested
+if [ "$RUN_MIGRATIONS" = "true" ]; then
+    log "🔄 Running database migrations..."
+    npm run migrate 2>/dev/null || log "Migration failed or not available"
+fi
+
+# Run seed data if requested
+if [ "$RUN_SEED" = "true" ]; then
+    log "🌱 Running database seeding..."
+    npm run seed 2>/dev/null || log "Seeding failed or not available"
+fi
+
+log "✅ Docker container setup complete"
+log "🚀 Starting application..."
 
 # Execute the command passed to this script
 exec "$@"

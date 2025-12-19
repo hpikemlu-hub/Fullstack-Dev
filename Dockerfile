@@ -19,6 +19,13 @@ RUN NODE_ENV=production npm run build
 # Production stage
 FROM node:18-alpine
 
+# Install additional tools that are needed for permission handling
+RUN apk add --no-cache \
+    shadow \
+    su-exec \
+    curl \
+    && rm -rf /var/cache/apk/*
+
 # Set working directory
 WORKDIR /app
 
@@ -42,26 +49,31 @@ RUN chmod +x docker_reset_admin.sh
 # Copy frontend build files from builder stage
 COPY --from=frontend-builder /app/frontend/dist ./frontend/dist
 
-# Create non-root user
-RUN addgroup -g 1001 -S nodejs
-RUN adduser -S nodejs -u 1001
+# Create app user with configurable UID/GID
+ARG PUID=1000
+ARG PGID=1000
 
-# Create directory for database and logs with proper permissions
-RUN mkdir -p /app/data /app/logs && \
-    chown -R nodejs:nodejs /app && \
-    chmod 755 /app/data && \
-    chmod 755 /app/logs
+# Create group and user with specified IDs
+RUN addgroup -g ${PGID} -S appgroup && \
+    adduser -S -u ${PUID} -G appgroup -h /app -s /bin/bash appuser
+
+# Create directories that are needed for the application
+RUN mkdir -p /app/data /app/logs /app/uploads /app/temp /app/public/uploads && \
+    chown -R appuser:appgroup /app/data /app/logs /app/uploads /app/temp /app/public/uploads && \
+    chmod 755 /app/data /app/logs /app/uploads /app/temp /app/public/uploads
 
 # Set environment variables
 ENV NODE_ENV=production
 ENV DB_PATH=/app/data/database.sqlite
+ENV PUID=${PUID}
+ENV PGID=${PGID}
 
 # Create a startup script to ensure database directory exists and has proper permissions
 COPY docker-entrypoint.sh /usr/local/bin/
 RUN chmod +x /usr/local/bin/docker-entrypoint.sh
 
 # Switch to non-root user
-USER nodejs
+USER appuser
 
 # Expose port
 EXPOSE 3000
@@ -70,8 +82,8 @@ EXPOSE 3000
 HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
   CMD node -e "require('http').get('http://localhost:3000/health', (res) => { process.exit(res.statusCode === 200 ? 0 : 1) }).on('error', () => process.exit(1))"
 
-# Volume for database persistence
-VOLUME ["/app/data"]
+# Volume for data persistence
+VOLUME ["/app/data", "/app/logs", "/app/uploads"]
 
 # Use the entrypoint script to ensure proper setup
 ENTRYPOINT ["docker-entrypoint.sh"]
