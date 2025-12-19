@@ -5,6 +5,8 @@ class User {
     static async create(userData) {
         const { username, password, nama, nip, golongan, jabatan, role = 'User' } = userData;
         
+        console.log(`🔐 Creating user: ${username} with role: ${role}`);
+        
         // Convert empty strings to null for optional fields
         const processedData = {
             username,
@@ -21,7 +23,24 @@ class User {
             throw new Error('Password is required');
         }
         
+        // Check if user already exists
+        try {
+            const existingUser = await this.findByUsername(processedData.username);
+            if (existingUser) {
+                console.log(`⚠️ User ${processedData.username} already exists with ID: ${existingUser.id}`);
+                throw new Error(`User ${processedData.username} already exists`);
+            }
+        } catch (error) {
+            // If error is not about existing user, continue
+            if (!error.message.includes('already exists')) {
+                console.log(`ℹ️ Error checking for existing user: ${error.message}`);
+            } else {
+                throw error;
+            }
+        }
+        
         // Hash password
+        console.log(`🔐 Hashing password for user: ${processedData.username}`);
         const hashedPassword = await hashPassword(processedData.password);
         
         const sql = `
@@ -40,9 +59,61 @@ class User {
         ];
         
         try {
+            console.log(`💾 Inserting user ${processedData.username} into database`);
             const result = await database.run(sql, params);
-            return await this.findById(result.id);
+            console.log(`✅ User ${processedData.username} created with ID: ${result.id}`);
+            
+            // Return the created user without password
+            const createdUser = await this.findById(result.id);
+            if (createdUser) {
+                console.log(`✅ User ${processedData.username} retrieved from database`);
+                return createdUser;
+            } else {
+                console.error(`❌ Failed to retrieve created user ${processedData.username} from database`);
+                throw new Error(`Failed to retrieve created user ${processedData.username}`);
+            }
         } catch (error) {
+            console.error(`❌ Error creating user ${processedData.username}:`, error.message);
+            throw error;
+        }
+    }
+    
+    // Special method to create admin user with enhanced error handling
+    static async createAdminUser(adminData = null) {
+        const defaultAdminData = {
+            username: 'admin',
+            password: 'admin123',
+            nama: 'Administrator',
+            role: 'Admin',
+            nip: null,
+            golongan: null,
+            jabatan: null
+        };
+        
+        const dataToUse = adminData || defaultAdminData;
+        
+        console.log('🔐 Creating admin user with enhanced error handling...');
+        
+        try {
+            // Check if admin already exists
+            const existingAdmin = await this.findByUsername('admin');
+            if (existingAdmin) {
+                console.log(`⚠️ Admin user already exists with ID: ${existingAdmin.id}`);
+                return existingAdmin;
+            }
+            
+            // Create admin user
+            const adminUser = await this.create(dataToUse);
+            
+            // Verify admin user was created with correct role
+            if (adminUser && adminUser.role === 'Admin') {
+                console.log('✅ Admin user created and verified successfully');
+                return adminUser;
+            } else {
+                throw new Error('Admin user was created but role verification failed');
+            }
+        } catch (error) {
+            console.error('❌ Error creating admin user:', error.message);
             throw error;
         }
     }

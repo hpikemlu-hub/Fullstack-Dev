@@ -7,6 +7,8 @@ const morgan = require('morgan');
 // Import configurations and middleware
 const database = require('./src/config/database');
 const { errorHandler, notFound } = require('./src/middleware/errorHandler');
+const SeedData = require('./src/utils/seedData');
+const User = require('./src/models/User');
 
 // Import routes
 const authRoutes = require('./src/routes/auth');
@@ -130,15 +132,83 @@ app.use(errorHandler);
 
 // Initialize database and start server
 const startServer = async () => {
+    let retryCount = 0;
+    const maxRetries = 3;
+    
+    const initializeWithRetry = async () => {
+        try {
+            // Initialize database
+            console.log('Initializing database...');
+            await database.initialize();
+            
+            // Verify database connection
+            console.log('Verifying database connection...');
+            await database.verifyConnection();
+            console.log('Database connection verified successfully');
+            
+            return true;
+        } catch (error) {
+            console.error(`Database initialization failed (attempt ${retryCount + 1}/${maxRetries}):`, error.message);
+            retryCount++;
+            
+            if (retryCount < maxRetries) {
+                console.log(`Retrying in 2 seconds...`);
+                await new Promise(resolve => setTimeout(resolve, 2000));
+                return initializeWithRetry();
+            } else {
+                console.error('Max retries reached. Database initialization failed.');
+                throw error;
+            }
+        }
+    };
+    
     try {
-        // Initialize database
-        console.log('Initializing database...');
-        await database.initialize();
+        // Initialize database with retry logic
+        await initializeWithRetry();
         
-        // Verify database connection
-        console.log('Verifying database connection...');
-        await database.verifyConnection();
-        console.log('Database connection verified successfully');
+        // Check if admin user exists, create if not
+        console.log('Checking for admin user...');
+        let adminUser = null;
+        let adminCreationAttempts = 0;
+        const maxAdminCreationAttempts = 3;
+        
+        while (adminCreationAttempts < maxAdminCreationAttempts) {
+            try {
+                adminUser = await User.findByUsername('admin');
+                if (!adminUser) {
+                    console.log(`Admin user not found, creating admin user (attempt ${adminCreationAttempts + 1}/${maxAdminCreationAttempts})...`);
+                    
+                    // Use the enhanced admin user creation method
+                    adminUser = await User.createAdminUser();
+                    console.log('✅ Admin user created successfully:', {
+                        id: adminUser.id,
+                        username: adminUser.username,
+                        nama: adminUser.nama,
+                        role: adminUser.role
+                    });
+                } else {
+                    console.log('✅ Admin user already exists:', {
+                        id: adminUser.id,
+                        username: adminUser.username,
+                        nama: adminUser.nama,
+                        role: adminUser.role
+                    });
+                    break;
+                }
+            } catch (error) {
+                console.error(`Error checking/creating admin user (attempt ${adminCreationAttempts + 1}/${maxAdminCreationAttempts}):`, error.message);
+                adminCreationAttempts++;
+                
+                if (adminCreationAttempts < maxAdminCreationAttempts) {
+                    console.log('Retrying admin user creation in 2 seconds...');
+                    await new Promise(resolve => setTimeout(resolve, 2000));
+                } else {
+                    console.error('Max admin creation attempts reached. Continuing with server startup...');
+                    // Don't exit, just log the error and continue
+                    console.log('⚠️ Server will start but admin user may not be available');
+                }
+            }
+        }
 
         // Start server
         app.listen(PORT, () => {
@@ -146,6 +216,13 @@ const startServer = async () => {
             console.log(`Environment: ${process.env.NODE_ENV}`);
             console.log(`Database path: ${database.dbPath}`);
             console.log(`API Documentation: http://localhost:${PORT}/api/docs`);
+            
+            // Log admin user status
+            if (adminUser) {
+                console.log('✅ Admin user is available for login');
+            } else {
+                console.log('⚠️ Admin user may not be available. Use reset_admin_prod.js to create it manually.');
+            }
         });
     } catch (error) {
         console.error('Failed to start server:', error);

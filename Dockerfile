@@ -49,11 +49,16 @@ RUN adduser -S nodejs -u 1001
 # Create directory for database and logs with proper permissions
 RUN mkdir -p /app/data /app/logs && \
     chown -R nodejs:nodejs /app && \
-    chmod 755 /app/data
+    chmod 755 /app/data && \
+    chmod 755 /app/logs
 
 # Set environment variables
 ENV NODE_ENV=production
 ENV DB_PATH=/app/data/database.sqlite
+
+# Create a startup script to ensure database directory exists and has proper permissions
+COPY docker-entrypoint.sh /usr/local/bin/
+RUN chmod +x /usr/local/bin/docker-entrypoint.sh
 
 # Switch to non-root user
 USER nodejs
@@ -67,6 +72,9 @@ HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
 
 # Volume for database persistence
 VOLUME ["/app/data"]
+
+# Use the entrypoint script to ensure proper setup
+ENTRYPOINT ["docker-entrypoint.sh"]
 
 # Start application
 CMD ["npm", "start"]

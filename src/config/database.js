@@ -5,36 +5,85 @@ const fs = require('fs');
 class Database {
     constructor() {
         this.db = null;
-        // Use /app/data directory in Docker, fallback to local directory for development
-        const defaultPath = process.env.NODE_ENV === 'production' ? '/app/data/database.sqlite' : './database.sqlite';
-        this.dbPath = process.env.DB_PATH || defaultPath;
-        
-        // Ensure database directory exists
-        this.ensureDatabaseDirectory();
+        // dbPath will be determined dynamically in connect() method
     }
 
     ensureDatabaseDirectory() {
         const dbDir = path.dirname(this.dbPath);
         if (!fs.existsSync(dbDir)) {
             try {
-                fs.mkdirSync(dbDir, { recursive: true });
-                console.log(`Created database directory: ${dbDir}`);
+                fs.mkdirSync(dbDir, { recursive: true, mode: 0o755 });
+                console.log(`✅ Created database directory: ${dbDir}`);
+                
+                // Verify directory is writable
+                try {
+                    const testFile = path.join(dbDir, '.write_test');
+                    fs.writeFileSync(testFile, 'test');
+                    fs.unlinkSync(testFile);
+                    console.log(`✅ Database directory is writable: ${dbDir}`);
+                } catch (writeError) {
+                    console.error(`❌ Database directory is not writable: ${dbDir}`, writeError.message);
+                    throw new Error(`Database directory is not writable: ${dbDir}`);
+                }
             } catch (error) {
-                console.error(`Failed to create database directory ${dbDir}:`, error.message);
+                console.error(`❌ Failed to create database directory ${dbDir}:`, error.message);
+                throw new Error(`Failed to create database directory: ${dbDir}`);
+            }
+        } else {
+            // Verify existing directory is writable
+            try {
+                const testFile = path.join(dbDir, '.write_test');
+                fs.writeFileSync(testFile, 'test');
+                fs.unlinkSync(testFile);
+                console.log(`✅ Database directory exists and is writable: ${dbDir}`);
+            } catch (writeError) {
+                console.error(`❌ Database directory exists but is not writable: ${dbDir}`, writeError.message);
+                throw new Error(`Database directory exists but is not writable: ${dbDir}`);
             }
         }
     }
 
     connect() {
         return new Promise((resolve, reject) => {
+            // Dynamically determine database path on each connection
+            const defaultPath = process.env.NODE_ENV === 'production' ? '/app/data/database.sqlite' : './database.sqlite';
+            this.dbPath = process.env.DB_PATH || defaultPath;
+            
+            console.log(`📁 Database path: ${this.dbPath}`);
+            
+            // Ensure database directory exists
+            this.ensureDatabaseDirectory();
+            
+            // Check if database file exists
+            const dbExists = fs.existsSync(this.dbPath);
+            if (!dbExists) {
+                console.log(`📝 Database file does not exist, will be created: ${this.dbPath}`);
+            } else {
+                console.log(`📝 Database file exists: ${this.dbPath}`);
+                
+                // Check if database file is writable
+                try {
+                    fs.accessSync(this.dbPath, fs.constants.W_OK);
+                    console.log(`✅ Database file is writable: ${this.dbPath}`);
+                } catch (accessError) {
+                    console.error(`❌ Database file is not writable: ${this.dbPath}`, accessError.message);
+                    throw new Error(`Database file is not writable: ${this.dbPath}`);
+                }
+            }
+            
             this.db = new sqlite3.Database(this.dbPath, (err) => {
                 if (err) {
-                    console.error('Error opening database:', err.message);
+                    console.error('❌ Error opening database:', err.message);
+                    console.error('Database path:', this.dbPath);
                     reject(err);
                 } else {
-                    console.log('Connected to SQLite database.');
+                    console.log('✅ Connected to SQLite database.');
                     // Enable foreign keys
                     this.db.run('PRAGMA foreign_keys = ON');
+                    
+                    // Set busy timeout for better concurrency handling
+                    this.db.run('PRAGMA busy_timeout = 30000');
+                    
                     resolve(this.db);
                 }
             });
@@ -44,13 +93,40 @@ class Database {
     async initialize() {
         try {
             await this.connect();
-            console.log(`Database connected at: ${this.dbPath}`);
+            console.log(`✅ Database connected at: ${this.dbPath}`);
+            
+            // Create tables
             await this.createTables();
-            console.log('Database initialization completed successfully');
+            console.log('✅ Database tables created/verified successfully');
+            
+            // Run database integrity check
+            await this.runIntegrityCheck();
+            console.log('✅ Database integrity check passed');
+            
+            console.log('✅ Database initialization completed successfully');
         } catch (error) {
-            console.error('Database initialization failed:', error.message);
+            console.error('❌ Database initialization failed:', error.message);
+            console.error('Database path:', this.dbPath);
             throw error;
         }
+    }
+    
+    async runIntegrityCheck() {
+        return new Promise((resolve, reject) => {
+            this.db.get('PRAGMA integrity_check', (err, row) => {
+                if (err) {
+                    reject(err);
+                } else {
+                    const result = row.integrity_check;
+                    if (result === 'ok') {
+                        resolve(true);
+                    } else {
+                        console.warn('Database integrity check result:', result);
+                        resolve(false);
+                    }
+                }
+            });
+        });
     }
 
     async verifyConnection() {
@@ -106,17 +182,20 @@ class Database {
             this.db.serialize(() => {
                 this.db.run(createUsersTable, (err) => {
                     if (err) {
-                        console.error('Error creating users table:', err.message);
+                        console.error('❌ Error creating users table:', err.message);
                         reject(err);
+                    } else {
+                        console.log('✅ Users table created/verified successfully');
                     }
                 });
 
                 this.db.run(createWorkloadsTable, (err) => {
                     if (err) {
-                        console.error('Error creating workloads table:', err.message);
+                        console.error('❌ Error creating workloads table:', err.message);
                         reject(err);
                     } else {
-                        console.log('Database tables created successfully.');
+                        console.log('✅ Workloads table created/verified successfully');
+                        console.log('✅ All database tables created/verified successfully');
                         resolve();
                     }
                 });
