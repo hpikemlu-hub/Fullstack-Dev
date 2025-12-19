@@ -1,7 +1,7 @@
 import { createContext, useContext, useState, useEffect } from 'react'
 import { authService } from '../services/authService'
 import toast from 'react-hot-toast'
-import { getToken, setToken, removeToken } from '../utils/tokenUtils'
+import { getToken, setToken, removeToken, isTokenExpired } from '../utils/tokenUtils'
 
 const AuthContext = createContext()
 
@@ -22,17 +22,37 @@ export const AuthProvider = ({ children }) => {
       const token = getToken()
       
       if (token) {
+        // Check if token is expired before making request
+        if (isTokenExpired(token)) {
+          console.log('Token expired during init, removing token')
+          removeToken()
+          setLoading(false)
+          return
+        }
+        
         try {
-          const response = await authService.getCurrentUser()
-          // Handle different response formats
-          const userData = response.data?.data || response.data || response
-          setUser(userData)
-          
           // Sync token to ensure it's stored in both places
           setToken(token)
+          
+          const response = await authService.getCurrentUser()
+          console.log('AuthContext.initAuth response:', response)
+          
+          // Handle different response formats
+          let userData = null
+          if (response.data?.data) {
+            userData = response.data.data
+          } else if (response.data) {
+            userData = response.data
+          } else {
+            userData = response
+          }
+          
+          console.log('AuthContext.initAuth userData:', userData)
+          setUser(userData)
         } catch (error) {
-          removeToken()
           console.error('Failed to restore auth session:', error)
+          removeToken()
+          // Don't redirect to login here, let the user stay on current page
         }
       }
       setLoading(false)
@@ -52,9 +72,12 @@ export const AuthProvider = ({ children }) => {
         console.log('Extracted user data:', response.user)
         console.log('Extracted token:', response.token)
         
-        setUser(response.user)
-        // Store token using utility function for consistency
+        // Store token first to ensure it's available before state update
         setToken(response.token)
+        
+        // Update user state
+        setUser(response.user)
+        
         toast.success('Login successful!')
         return { user: response.user, token: response.token }
       } else {
@@ -83,15 +106,33 @@ export const AuthProvider = ({ children }) => {
   const refreshToken = async () => {
     try {
       const response = await authService.refreshToken()
-      // Handle different response formats
-      const userData = response.data?.user || response.user
-      const token = response.data?.token || response.token
+      console.log('AuthContext.refreshToken response:', response)
       
-      setUser(userData)
-      // Store token using utility function
-      setToken(token)
+      // Handle different response formats
+      let userData = null
+      let token = null
+      
+      if (response.data?.data) {
+        userData = response.data.data.user
+        token = response.data.data.token
+      } else if (response.data) {
+        userData = response.data.user
+        token = response.data.token
+      } else {
+        userData = response.user
+        token = response.token
+      }
+      
+      if (userData && token) {
+        // Store token first
+        setToken(token)
+        // Then update user state
+        setUser(userData)
+      }
+      
       return response
     } catch (error) {
+      console.error('AuthContext.refreshToken error:', error)
       logout()
       throw error
     }

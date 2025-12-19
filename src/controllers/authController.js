@@ -7,6 +7,11 @@ class AuthController {
         try {
             const { username, password } = req.body;
 
+            // Validate input
+            if (!username || !password) {
+                return unauthorizedResponse(res, 'Username and password are required');
+            }
+
             // Authenticate user
             const user = await User.authenticate(username, password);
 
@@ -14,7 +19,7 @@ class AuthController {
                 return unauthorizedResponse(res, 'Invalid username or password');
             }
 
-            // Generate JWT token
+            // Generate JWT token with longer expiration for production
             const token = generateToken({
                 userId: user.id,
                 username: user.username,
@@ -24,9 +29,14 @@ class AuthController {
             // Return user data without password and token
             const { password: _, ...userData } = user;
 
+            // Add token expiration info to response
+            const tokenPayload = JSON.parse(Buffer.from(token.split('.')[1], 'base64').toString());
+            const expiresIn = tokenPayload.exp - Math.floor(Date.now() / 1000);
+
             return successResponse(res, {
                 user: userData,
-                token
+                token,
+                expiresIn
             }, 'Login successful');
 
         } catch (error) {
@@ -56,7 +66,10 @@ class AuthController {
                 return unauthorizedResponse(res, 'User not found');
             }
 
-            return successResponse(res, user, 'User retrieved successfully');
+            // Return user data without password
+            const { password: _, ...userData } = user;
+
+            return successResponse(res, userData, 'User retrieved successfully');
 
         } catch (error) {
             console.error('Get current user error:', error);
@@ -76,9 +89,14 @@ class AuthController {
                 role: user.role
             });
 
+            // Add token expiration info to response
+            const tokenPayload = JSON.parse(Buffer.from(token.split('.')[1], 'base64').toString());
+            const expiresIn = tokenPayload.exp - Math.floor(Date.now() / 1000);
+
             return successResponse(res, {
                 user,
-                token
+                token,
+                expiresIn
             }, 'Token refreshed successfully');
 
         } catch (error) {

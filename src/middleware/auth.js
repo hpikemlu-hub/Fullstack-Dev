@@ -11,6 +11,7 @@ const authenticateToken = async (req, res, next) => {
             return unauthorizedResponse(res, 'Access token required');
         }
 
+        // Verify the token
         const decoded = verifyToken(token);
         
         // Get user from database to ensure user still exists
@@ -20,14 +21,27 @@ const authenticateToken = async (req, res, next) => {
             return unauthorizedResponse(res, 'User not found');
         }
 
+        // Attach user and token info to request
         req.user = user;
+        req.token = {
+            userId: decoded.userId,
+            username: decoded.username,
+            role: decoded.role,
+            exp: decoded.exp
+        };
+        
         next();
     } catch (error) {
         // Provide more specific error messages
         if (error.message === 'Token expired') {
+            console.error('Token expired error:', error);
             return unauthorizedResponse(res, 'Token expired');
-        } else if (error.message === 'Invalid token') {
+        } else if (error.message === 'Invalid token' || error.name === 'JsonWebTokenError') {
+            console.error('Invalid token error:', error);
             return unauthorizedResponse(res, 'Invalid token');
+        } else if (error.name === 'NotBeforeError') {
+            console.error('Token not active error:', error);
+            return unauthorizedResponse(res, 'Token not active');
         } else {
             console.error('Authentication error:', error);
             return unauthorizedResponse(res, 'Authentication failed');
@@ -61,18 +75,42 @@ const optionalAuth = async (req, res, next) => {
             
             if (user) {
                 req.user = user;
+                req.token = {
+                    userId: decoded.userId,
+                    username: decoded.username,
+                    role: decoded.role,
+                    exp: decoded.exp
+                };
             }
         }
 
         next();
     } catch (error) {
         // Continue without authentication if token is invalid
+        console.error('Optional auth error:', error);
         next();
     }
+};
+
+// Middleware to check if token is about to expire (within 5 minutes)
+const checkTokenExpiry = (req, res, next) => {
+    if (req.token && req.token.exp) {
+        const currentTime = Math.floor(Date.now() / 1000);
+        const timeUntilExpiry = req.token.exp - currentTime;
+        
+        // If token expires within 5 minutes (300 seconds), add a flag
+        if (timeUntilExpiry < 300) {
+            res.set('X-Token-Expiring-Soon', 'true');
+            res.set('X-Token-Expiry-Time', req.token.exp.toString());
+        }
+    }
+    
+    next();
 };
 
 module.exports = {
     authenticateToken,
     authorizeRole,
-    optionalAuth
+    optionalAuth,
+    checkTokenExpiry
 };

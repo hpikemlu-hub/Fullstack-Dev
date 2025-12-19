@@ -36,9 +36,38 @@ const api = axios.create({
   },
 })
 
-// Log all requests for debugging
+// Flag to prevent multiple refresh attempts
+let isRefreshing = false
+let failedQueue = []
+
+const processQueue = (error, token = null) => {
+  failedQueue.forEach(prom => {
+    if (error) {
+      prom.reject(error)
+    } else {
+      prom.resolve(token)
+    }
+  })
+  
+  failedQueue = []
+}
+
+// Request interceptor to add auth token
 api.interceptors.request.use(
   (config) => {
+    const token = getToken()
+    if (token) {
+      // Check if token is expired before sending
+      if (isTokenExpired(token)) {
+        console.log('Token expired in request interceptor, removing token')
+        removeToken()
+        // Don't add the header for expired token
+        return config
+      }
+      config.headers.Authorization = `Bearer ${token}`
+    }
+    
+    // Log request for debugging
     console.log('API Request:', config.method?.toUpperCase(), config.url, config.data)
     return config
   },
@@ -48,78 +77,95 @@ api.interceptors.request.use(
   }
 )
 
-// Log all responses for debugging
+// Response interceptor to handle errors and token refresh
 api.interceptors.response.use(
   (response) => {
+    // Log response for debugging
     console.log('API Response:', response.config.method?.toUpperCase(), response.config.url, response.status, response.data)
-    return response
-  },
-  (error) => {
-    console.error('API Response Error:', error)
-    return Promise.reject(error)
-  }
-)
-
-// Request interceptor to add auth token
-api.interceptors.request.use(
-  (config) => {
-    const token = getToken()
-    if (token) {
-      // Check if token is expired before sending
-      if (isTokenExpired(token)) {
-        // Remove expired token
-        removeToken()
-        // Don't add the header for expired token
-        return config
-      }
-      config.headers.Authorization = `Bearer ${token}`
-    }
-    return config
-  },
-  (error) => {
-    return Promise.reject(error)
-  }
-)
-
-// Response interceptor to handle errors
-api.interceptors.response.use(
-  (response) => {
     return response
   },
   async (error) => {
     const originalRequest = error.config
+    
+    console.error('API Response Error:', error)
     
     if (error.response) {
       const { status, data } = error.response
       
       switch (status) {
         case 401:
-          // If it's not a refresh token request, try to refresh the token
+          // If it's not a refresh token request and we haven't tried refreshing yet
           if (!originalRequest._retry && !originalRequest.url.includes('/auth/refresh')) {
+            if (isRefreshing) {
+              // If already refreshing, add this request to the queue
+              return new Promise((resolve, reject) => {
+                failedQueue.push({ resolve, reject })
+              }).then(token => {
+                originalRequest.headers.Authorization = `Bearer ${token}`
+                return api(originalRequest)
+              }).catch(err => {
+                return Promise.reject(err)
+              })
+            }
+
             originalRequest._retry = true
+            isRefreshing = true
             
             try {
               // Try to refresh the token
               const refreshResponse = await api.post('/auth/refresh')
-              const newToken = refreshResponse.data.data?.token || refreshResponse.data.token
+              
+              let newToken = null
+              if (refreshResponse.data?.data?.token) {
+                newToken = refreshResponse.data.data.token
+              } else if (refreshResponse.data?.token) {
+                newToken = refreshResponse.data.token
+              }
               
               if (newToken) {
                 // Store the new token using utility function
                 setToken(newToken)
                 
+                // Process the queue with the new token
+                processQueue(null, newToken)
+                
                 // Update the authorization header and retry the original request
                 originalRequest.headers.Authorization = `Bearer ${newToken}`
                 return api(originalRequest)
+              } else {
+                throw new Error('No token in refresh response')
               }
             } catch (refreshError) {
               console.error('Token refresh failed:', refreshError)
+              
+              // Process the queue with the error
+              processQueue(refreshError, null)
+              
+              // Clear tokens and redirect to login
+              removeToken()
+              
+              // Only redirect if we're not already on the login page
+              if (!window.location.pathname.includes('/login')) {
+                window.location.href = '/login'
+              }
+              
+              toast.error('Session expired. Please login again.')
+              return Promise.reject(refreshError)
+            } finally {
+              isRefreshing = false
             }
+          } else {
+            // If it's a refresh token request or we already tried refreshing
+            // Clear tokens and redirect
+            removeToken()
+            
+            // Only redirect if we're not already on the login page
+            if (!window.location.pathname.includes('/login')) {
+              window.location.href = '/login'
+            }
+            
+            toast.error('Session expired. Please login again.')
           }
-          
-          // If refresh failed or it was already tried, clear tokens and redirect
-          removeToken()
-          window.location.href = '/login'
-          toast.error('Session expired. Please login again.')
           break
         case 403:
           toast.error('You do not have permission to perform this action.')
