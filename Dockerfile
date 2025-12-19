@@ -15,7 +15,7 @@ COPY frontend/package*.json ./frontend/
 
 # Install ALL dependencies for frontend (including dev dependencies for build)
 WORKDIR /app/frontend
-RUN npm install && npm cache clean --force
+RUN npm install --force && npm cache clean --force
 
 # Build frontend
 RUN npm run build
