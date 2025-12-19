@@ -75,7 +75,7 @@ jspm_packages/
 
 # Nuxt.js build / generate output
 .nuxt
-dist
+# frontend/dist will be created during build, so don't ignore it
 
 # Gatsby files
 .cache/

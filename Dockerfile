@@ -1,4 +1,22 @@
-# Use Node.js 18 Alpine as base image
+# Multi-stage build for frontend
+FROM node:18-alpine as frontend-builder
+
+# Set working directory for frontend build
+WORKDIR /app/frontend
+
+# Copy frontend package.json files
+COPY frontend/package*.json ./
+
+# Install ALL dependencies for frontend (including dev dependencies for build)
+RUN npm install --force && npm cache clean --force
+
+# Copy frontend source files including index.html
+COPY frontend/ ./
+
+# Build frontend
+RUN npm run build
+
+# Production stage
 FROM node:18-alpine
 
 # Set working directory
@@ -10,20 +28,12 @@ COPY package*.json ./
 # Install backend dependencies
 RUN npm ci --only=production && npm cache clean --force
 
-# Copy frontend package.json files
-COPY frontend/package*.json ./frontend/
-
-# Install ALL dependencies for frontend (including dev dependencies for build)
-WORKDIR /app/frontend
-RUN npm install --force && npm cache clean --force
-
-# Build frontend
-RUN npm run build
-
 # Copy backend source code
-WORKDIR /app
 COPY src/ ./src/
 COPY server.js .
+
+# Copy frontend build files from builder stage
+COPY --from=frontend-builder /app/frontend/dist ./frontend/dist
 
 # Create non-root user
 RUN addgroup -g 1001 -S nodejs

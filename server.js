@@ -59,13 +59,21 @@ app.get('/favicon.ico', (req, res) => {
     res.status(204).end();
 });
 
+// Serve static files from frontend
+app.use(express.static('frontend/dist'));
+
 // API routes
 app.use('/api/auth', authRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/workload', workloadRoutes);
 
-// Root endpoint
+// Root endpoint - serve frontend index.html
 app.get('/', (req, res) => {
+    res.sendFile('index.html', { root: 'frontend/dist' });
+});
+
+// API info endpoint
+app.get('/api', (req, res) => {
     res.json({
         message: 'Workload Management API',
         version: '1.0.0',
