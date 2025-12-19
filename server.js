@@ -93,6 +93,22 @@ app.get('/api', (req, res) => {
     });
 });
 
+// SPA fallback route - catch all non-API routes and serve index.html
+app.get('*', (req, res, next) => {
+    // Skip if this is an API route
+    if (req.path.startsWith('/api/')) {
+        return next();
+    }
+    
+    // Skip if this is a static file request (has file extension)
+    if (req.path.includes('.')) {
+        return next();
+    }
+    
+    // Serve index.html for all other routes (SPA routing)
+    res.sendFile('index.html', { root: 'frontend/dist' });
+});
+
 // 404 handler
 app.use(notFound);
 
