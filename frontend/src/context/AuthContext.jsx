@@ -1,6 +1,7 @@
 import { createContext, useContext, useState, useEffect } from 'react'
 import { authService } from '../services/authService'
 import toast from 'react-hot-toast'
+import { getToken, setToken, removeToken } from '../utils/tokenUtils'
 
 const AuthContext = createContext()
 
@@ -18,13 +19,19 @@ export const AuthProvider = ({ children }) => {
 
   useEffect(() => {
     const initAuth = async () => {
-      const token = localStorage.getItem('token')
+      const token = getToken()
+      
       if (token) {
         try {
-          const userData = await authService.getCurrentUser()
+          const response = await authService.getCurrentUser()
+          // Handle different response formats
+          const userData = response.data?.data || response.data || response
           setUser(userData)
+          
+          // Sync token to ensure it's stored in both places
+          setToken(token)
         } catch (error) {
-          localStorage.removeItem('token')
+          removeToken()
           console.error('Failed to restore auth session:', error)
         }
       }
@@ -46,7 +53,8 @@ export const AuthProvider = ({ children }) => {
         console.log('Extracted token:', response.token)
         
         setUser(response.user)
-        localStorage.setItem('token', response.token)
+        // Store token using utility function for consistency
+        setToken(response.token)
         toast.success('Login successful!')
         return { user: response.user, token: response.token }
       } else {
@@ -66,7 +74,8 @@ export const AuthProvider = ({ children }) => {
       console.error('Logout error:', error)
     } finally {
       setUser(null)
-      localStorage.removeItem('token')
+      // Clear tokens using utility function
+      removeToken()
       toast.success('Logged out successfully')
     }
   }
@@ -74,8 +83,13 @@ export const AuthProvider = ({ children }) => {
   const refreshToken = async () => {
     try {
       const response = await authService.refreshToken()
-      setUser(response.user)
-      localStorage.setItem('token', response.token)
+      // Handle different response formats
+      const userData = response.data?.user || response.user
+      const token = response.data?.token || response.token
+      
+      setUser(userData)
+      // Store token using utility function
+      setToken(token)
       return response
     } catch (error) {
       logout()

@@ -21,13 +21,23 @@ const PORT = process.env.PORT || 3000;
 app.use(helmet());
 
 // CORS configuration
+const corsOrigins = [
+    'http://localhost:5173',
+    'http://127.0.0.1:5173',
+    'https://hpsb.online',
+    'https://www.hpsb.online'
+];
+
+// Add CORS_ORIGIN from environment if provided
+if (process.env.CORS_ORIGIN) {
+    corsOrigins.push(process.env.CORS_ORIGIN);
+}
+
 app.use(cors({
-    origin: [
-        'http://localhost:5173',
-        'http://127.0.0.1:5173',
-        process.env.CORS_ORIGIN
-    ].filter(Boolean),
-    credentials: true
+    origin: corsOrigins,
+    credentials: true,
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization']
 }));
 
 // Body parsing middleware

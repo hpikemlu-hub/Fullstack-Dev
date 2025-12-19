@@ -1,5 +1,6 @@
 import axios from 'axios'
 import toast from 'react-hot-toast'
+import { getToken, setToken, removeToken, isTokenExpired } from '../utils/tokenUtils'
 
 // Determine the API base URL based on environment
 const getApiBaseUrl = () => {
@@ -62,8 +63,15 @@ api.interceptors.response.use(
 // Request interceptor to add auth token
 api.interceptors.request.use(
   (config) => {
-    const token = localStorage.getItem('token')
+    const token = getToken()
     if (token) {
+      // Check if token is expired before sending
+      if (isTokenExpired(token)) {
+        // Remove expired token
+        removeToken()
+        // Don't add the header for expired token
+        return config
+      }
       config.headers.Authorization = `Bearer ${token}`
     }
     return config
@@ -78,14 +86,38 @@ api.interceptors.response.use(
   (response) => {
     return response
   },
-  (error) => {
+  async (error) => {
+    const originalRequest = error.config
+    
     if (error.response) {
       const { status, data } = error.response
       
       switch (status) {
         case 401:
-          // Unauthorized - clear token and redirect to login
-          localStorage.removeItem('token')
+          // If it's not a refresh token request, try to refresh the token
+          if (!originalRequest._retry && !originalRequest.url.includes('/auth/refresh')) {
+            originalRequest._retry = true
+            
+            try {
+              // Try to refresh the token
+              const refreshResponse = await api.post('/auth/refresh')
+              const newToken = refreshResponse.data.data?.token || refreshResponse.data.token
+              
+              if (newToken) {
+                // Store the new token using utility function
+                setToken(newToken)
+                
+                // Update the authorization header and retry the original request
+                originalRequest.headers.Authorization = `Bearer ${newToken}`
+                return api(originalRequest)
+              }
+            } catch (refreshError) {
+              console.error('Token refresh failed:', refreshError)
+            }
+          }
+          
+          // If refresh failed or it was already tried, clear tokens and redirect
+          removeToken()
           window.location.href = '/login'
           toast.error('Session expired. Please login again.')
           break

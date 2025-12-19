@@ -23,7 +23,15 @@ const authenticateToken = async (req, res, next) => {
         req.user = user;
         next();
     } catch (error) {
-        return unauthorizedResponse(res, 'Invalid or expired token');
+        // Provide more specific error messages
+        if (error.message === 'Token expired') {
+            return unauthorizedResponse(res, 'Token expired');
+        } else if (error.message === 'Invalid token') {
+            return unauthorizedResponse(res, 'Invalid token');
+        } else {
+            console.error('Authentication error:', error);
+            return unauthorizedResponse(res, 'Authentication failed');
+        }
     }
 };
 
