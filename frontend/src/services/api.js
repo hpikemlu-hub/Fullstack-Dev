@@ -1,7 +1,31 @@
 import axios from 'axios'
 import toast from 'react-hot-toast'
 
-const API_BASE_URL = 'http://localhost:3000/api'
+// Determine the API base URL based on environment
+const getApiBaseUrl = () => {
+  // Check if we're in development mode
+  if (import.meta.env.DEV) {
+    return import.meta.env.VITE_API_URL || 'http://localhost:3000/api'
+  }
+  
+  // In production, use the same origin or fallback to production URL
+  if (import.meta.env.PROD) {
+    // If VITE_API_URL is set in production, use it
+    if (import.meta.env.VITE_API_URL) {
+      return import.meta.env.VITE_API_URL
+    }
+    
+    // Otherwise, use relative path for same-origin requests
+    return '/api'
+  }
+  
+  // Fallback to environment variable or localhost
+  return import.meta.env.VITE_API_URL || 'http://localhost:3000/api'
+}
+
+const API_BASE_URL = getApiBaseUrl()
+
+console.log('API Base URL:', API_BASE_URL)
 
 const api = axios.create({
   baseURL: API_BASE_URL,

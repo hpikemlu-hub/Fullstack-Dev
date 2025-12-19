@@ -5,23 +5,26 @@ const router = express.Router();
 router.get('/', async (req, res) => {
   try {
     // Check database connection
-    const db = require('../config/database');
+    const database = require('../config/database');
     
-    // Simple database query to check connection
-    await new Promise((resolve, reject) => {
-      db.get('SELECT 1', (err) => {
-        if (err) reject(err);
-        else resolve();
-      });
-    });
+    // Use the verifyConnection method to test database
+    await database.verifyConnection();
+    
+    // Additional check - try to query users table
+    await database.get('SELECT COUNT(*) as count FROM users');
     
     res.status(200).json({
       status: 'OK',
       message: 'Workload Management API is running',
       timestamp: new Date().toISOString(),
-      uptime: process.uptime()
+      uptime: process.uptime(),
+      database: {
+        status: 'connected',
+        path: database.dbPath
+      }
     });
   } catch (error) {
+    console.error('Health check failed:', error);
     res.status(503).json({
       status: 'ERROR',
       message: 'Database connection failed',

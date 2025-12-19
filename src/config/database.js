@@ -1,10 +1,28 @@
 const sqlite3 = require('sqlite3').verbose();
 const path = require('path');
+const fs = require('fs');
 
 class Database {
     constructor() {
         this.db = null;
-        this.dbPath = process.env.DB_PATH || './database.sqlite';
+        // Use /app/data directory in Docker, fallback to local directory for development
+        const defaultPath = process.env.NODE_ENV === 'production' ? '/app/data/database.sqlite' : './database.sqlite';
+        this.dbPath = process.env.DB_PATH || defaultPath;
+        
+        // Ensure database directory exists
+        this.ensureDatabaseDirectory();
+    }
+
+    ensureDatabaseDirectory() {
+        const dbDir = path.dirname(this.dbPath);
+        if (!fs.existsSync(dbDir)) {
+            try {
+                fs.mkdirSync(dbDir, { recursive: true });
+                console.log(`Created database directory: ${dbDir}`);
+            } catch (error) {
+                console.error(`Failed to create database directory ${dbDir}:`, error.message);
+            }
+        }
     }
 
     connect() {
@@ -24,8 +42,31 @@ class Database {
     }
 
     async initialize() {
-        await this.connect();
-        await this.createTables();
+        try {
+            await this.connect();
+            console.log(`Database connected at: ${this.dbPath}`);
+            await this.createTables();
+            console.log('Database initialization completed successfully');
+        } catch (error) {
+            console.error('Database initialization failed:', error.message);
+            throw error;
+        }
+    }
+
+    async verifyConnection() {
+        if (!this.db) {
+            throw new Error('Database not initialized');
+        }
+        
+        return new Promise((resolve, reject) => {
+            this.db.get('SELECT 1', (err) => {
+                if (err) {
+                    reject(err);
+                } else {
+                    resolve(true);
+                }
+            });
+        });
     }
 
     createTables() {

@@ -10,11 +10,11 @@ COPY frontend/package*.json ./
 # Install ALL dependencies for frontend (including dev dependencies for build)
 RUN npm install --force && npm cache clean --force
 
-# Copy frontend source files including index.html
+# Copy frontend source files including index.html and environment files
 COPY frontend/ ./
 
-# Build frontend
-RUN npm run build
+# Build frontend with production mode
+RUN NODE_ENV=production npm run build
 
 # Production stage
 FROM node:18-alpine
@@ -39,9 +39,14 @@ COPY --from=frontend-builder /app/frontend/dist ./frontend/dist
 RUN addgroup -g 1001 -S nodejs
 RUN adduser -S nodejs -u 1001
 
-# Create directory for database and logs
+# Create directory for database and logs with proper permissions
 RUN mkdir -p /app/data /app/logs && \
-    chown -R nodejs:nodejs /app
+    chown -R nodejs:nodejs /app && \
+    chmod 755 /app/data
+
+# Set environment variables
+ENV NODE_ENV=production
+ENV DB_PATH=/app/data/database.sqlite
 
 # Switch to non-root user
 USER nodejs
@@ -52,6 +57,9 @@ EXPOSE 3000
 # Health check
 HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
   CMD node -e "require('http').get('http://localhost:3000/health', (res) => { process.exit(res.statusCode === 200 ? 0 : 1) }).on('error', () => process.exit(1))"
+
+# Volume for database persistence
+VOLUME ["/app/data"]
 
 # Start application
 CMD ["npm", "start"]

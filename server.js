@@ -59,8 +59,19 @@ app.get('/favicon.ico', (req, res) => {
     res.status(204).end();
 });
 
-// Serve static files from frontend
-app.use(express.static('frontend/dist'));
+// Vite.svg endpoint to prevent 404 errors (for backward compatibility)
+app.get('/vite.svg', (req, res) => {
+    // Redirect to favicon.ico to ensure consistent behavior
+    res.redirect(302, '/favicon.ico');
+});
+
+// Serve static files from frontend, but exclude vite.svg
+app.use((req, res, next) => {
+    if (req.path === '/vite.svg') {
+        return next(); // Skip static middleware for vite.svg
+    }
+    return express.static('frontend/dist')(req, res, next);
+});
 
 // API routes
 app.use('/api/auth', authRoutes);
@@ -92,17 +103,24 @@ app.use(errorHandler);
 const startServer = async () => {
     try {
         // Initialize database
+        console.log('Initializing database...');
         await database.initialize();
-        console.log('Database initialized successfully');
+        
+        // Verify database connection
+        console.log('Verifying database connection...');
+        await database.verifyConnection();
+        console.log('Database connection verified successfully');
 
         // Start server
         app.listen(PORT, () => {
             console.log(`Server is running on port ${PORT}`);
             console.log(`Environment: ${process.env.NODE_ENV}`);
+            console.log(`Database path: ${database.dbPath}`);
             console.log(`API Documentation: http://localhost:${PORT}/api/docs`);
         });
     } catch (error) {
         console.error('Failed to start server:', error);
+        console.error('Error details:', error.stack);
         process.exit(1);
     }
 };
